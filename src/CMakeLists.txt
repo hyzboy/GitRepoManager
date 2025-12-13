@@ -3,6 +3,10 @@ set(SOURCES
     main.cpp
 )
 
+# Find Qt
+find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
+message(STATUS "Found Qt6 components: Core, Widgets")
+
 # Create executable
 add_executable(GitRepoManager ${SOURCES})
 
@@ -12,13 +16,17 @@ target_link_libraries(GitRepoManager PRIVATE
     Qt6::Widgets
 )
 
-# Link libgit2 depending on how it was found
+find_package(libgit2 CONFIG REQUIRED)
+message(STATUS "find_package(libgit2) completed")
+
+# Link libgit2 (prefer imported target when available)
 if(TARGET libgit2::libgit2)
-    # Found via CONFIG (vcpkg)
+    message(STATUS "Using vcpkg-configured libgit2 target 'libgit2::libgit2'")
     target_link_libraries(GitRepoManager PRIVATE libgit2::libgit2)
-elseif(TARGET PkgConfig::libgit2)
-    # Found via pkg-config
-    target_link_libraries(GitRepoManager PRIVATE PkgConfig::libgit2)
+else()
+    message(STATUS "Using fallback libgit2 target 'libgit2::libgit2package'")
+    # Fallback when a different target name or pkg-config is used
+    target_link_libraries(GitRepoManager PRIVATE libgit2::libgit2package)
 endif()
 
 # Set target properties
