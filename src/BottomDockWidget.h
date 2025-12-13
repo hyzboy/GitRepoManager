@@ -5,6 +5,7 @@
 #include <QListWidget>
 #include <QTextEdit>
 #include <git2.h>
+#include <QMap>
 
 class QSplitter;
 
@@ -37,6 +38,7 @@ private:
     // Git data
     git_repository *currentRepo;
     git_oid currentCommitOid;
+    QMap<int, QString> filePathMap;  // Map row index to file path
 };
 
 #endif // BOTTOMDOCKWIDGET_H

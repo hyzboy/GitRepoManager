@@ -37,8 +37,6 @@ void BottomDockWidget::setupUI()
     leftLayout->addWidget(filesLabel);
     
     fileList = new QListWidget(this);
-    fileList->setMaximumWidth(300);
-    fileList->setMinimumWidth(200);
     connect(fileList, &QListWidget::currentRowChanged, this, &BottomDockWidget::onFileSelected);
     leftLayout->addWidget(fileList);
     
@@ -101,6 +99,9 @@ void BottomDockWidget::populateFileList(git_commit *commit)
 {
     if (!commit) return;
     
+    // Clear the file path map
+    filePathMap.clear();
+    
     // Get commit tree
     git_tree *commit_tree = nullptr;
     if (git_commit_tree(&commit_tree, commit) != 0) {
@@ -143,7 +144,9 @@ void BottomDockWidget::populateFileList(git_commit *commit)
                                 case GIT_DELTA_COPIED: status = "[C] "; break;
                                 default: status = "[?] "; break;
                             }
+                            int row = fileList->count();
                             fileList->addItem(status + filePath);
+                            filePathMap[row] = filePath;
                         }
                     }
                     
@@ -168,12 +171,17 @@ void BottomDockWidget::onFileSelected()
         return;
     }
     
-    QString itemText = item->text();
+    int row = fileList->row(item);
+    QString filePath;
     
-    // Extract file path (remove status prefix like [M], [A], etc.)
-    QString filePath = itemText;
-    if (itemText.startsWith("[") && itemText.indexOf("] ") > 0) {
-        filePath = itemText.mid(itemText.indexOf("] ") + 2);
+    if (filePathMap.contains(row)) {
+        filePath = filePathMap[row];
+    } else {
+        // Extract file path for initial commit
+        QString itemText = item->text();
+        if (itemText.startsWith("[") && itemText.indexOf("] ") > 0) {
+            filePath = itemText.mid(itemText.indexOf("] ") + 2);
+        }
     }
     
     showFileDiff(filePath);
@@ -205,15 +213,19 @@ void BottomDockWidget::showFileDiff(const QString &filePath)
                     const void *content = git_blob_rawcontent(blob);
                     size_t size = git_blob_rawsize(blob);
                     QString text = QString::fromUtf8(static_cast<const char*>(content), size);
-                    diffDisplay->setPlainText("=== Initial commit - Full file content ===\n\n" + text);
+                    diffDisplay->setPlainText(text);
                     git_blob_free(blob);
+                } else {
+                    diffDisplay->setPlainText("Failed to read file content.");
                 }
                 git_tree_entry_free(entry);
+            } else {
+                diffDisplay->setPlainText("File not found in commit.");
             }
             git_tree_free(tree);
         }
     } else {
-        // Show diff with parent
+        // Show diff with parent - filter for specific file
         git_commit *parent_commit = nullptr;
         if (git_commit_parent(&parent_commit, commit, 0) == 0) {
             git_tree *commit_tree = nullptr;
@@ -225,16 +237,50 @@ void BottomDockWidget::showFileDiff(const QString &filePath)
                 git_diff *diff = nullptr;
                 if (git_diff_tree_to_tree(&diff, currentRepo, parent_tree, commit_tree, nullptr) == 0) {
                     
-                    // Generate patch text
+                    // Generate full patch and filter for specific file
                     git_buf patch_buf = GIT_BUF_INIT;
                     if (git_diff_to_buf(&patch_buf, diff, GIT_DIFF_FORMAT_PATCH) == 0) {
-                        QString patchText = QString::fromUtf8(patch_buf.ptr, patch_buf.size);
-                        diffDisplay->setPlainText(patchText);
+                        QString fullPatch = QString::fromUtf8(patch_buf.ptr, patch_buf.size);
+                        
+                        // Filter the patch to show only the specific file
+                        QString output;
+                        QStringList lines = fullPatch.split('\n');
+                        bool inTargetFile = false;
+                        
+                        for (const QString &line : lines) {
+                            // Check if this line starts a new file diff
+                            if (line.startsWith("diff --git")) {
+                                // Check if it's our target file
+                                if (line.contains(" b/" + filePath)) {
+                                    inTargetFile = true;
+                                    output += line + '\n';
+                                } else if (!output.isEmpty() && inTargetFile) {
+                                    // We were in target file but now moved to another file
+                                    break;
+                                } else {
+                                    inTargetFile = false;
+                                }
+                            } else if (inTargetFile) {
+                                output += line + '\n';
+                            }
+                        }
+                        
+                        if (output.isEmpty()) {
+                            diffDisplay->setPlainText("File not found in commit diff.");
+                        } else {
+                            // Remove trailing newline if present
+                            if (output.endsWith('\n')) {
+                                output.chop(1);
+                            }
+                            diffDisplay->setPlainText(output);
+                        }
                     } else {
-                        diffDisplay->setPlainText("Failed to generate diff for this file.");
+                        diffDisplay->setPlainText("Failed to generate diff.");
                     }
                     git_buf_dispose(&patch_buf);
                     git_diff_free(diff);
+                } else {
+                    diffDisplay->setPlainText("Failed to create diff.");
                 }
             }
             
@@ -251,4 +297,5 @@ void BottomDockWidget::clearDisplay()
 {
     fileList->clear();
     diffDisplay->clear();
+    filePathMap.clear();
 }
