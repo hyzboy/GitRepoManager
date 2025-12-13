@@ -75,6 +75,10 @@ void MainWindow::setupUI()
     // Create toolbar
     createToolBar();
 
+    // Connect CommitsDockWidget signal to CommitDetailWidget slot
+    connect(commitsDockWidget, &CommitsDockWidget::commitSelected, 
+            commitDetailWidget, &CommitDetailWidget::displayCommitDetail);
+
     setCentralWidget(centralWidget);
 }
 
@@ -132,6 +136,11 @@ void MainWindow::onOpenRepository()
             // Load commits into the commits dock widget
             if (commitsDockWidget) {
                 commitsDockWidget->loadCommits(currentRepo);
+            }
+            
+            // Set repository for commit detail widget
+            if (commitDetailWidget) {
+                commitDetailWidget->setRepository(currentRepo);
             }
         }
     }

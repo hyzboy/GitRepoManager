@@ -41,6 +41,9 @@ void CommitsDockWidget::setupUI()
     commitTable->setSelectionMode(QAbstractItemView::SingleSelection);
     commitTable->setAlternatingRowColors(true);
     
+    // Connect selection change signal
+    connect(commitTable, &QTableWidget::itemSelectionChanged, this, &CommitsDockWidget::onCommitSelectionChanged);
+    
     layout->addWidget(commitTable);
     
     setWidget(content);
@@ -59,6 +62,7 @@ void CommitsDockWidget::clearCommits()
     if (commitTable) {
         commitTable->setRowCount(0);
     }
+    commitOidMap.clear();
 }
 
 void CommitsDockWidget::populateCommitTable(git_repository *repo)
@@ -118,6 +122,9 @@ void CommitsDockWidget::populateCommitTable(git_repository *repo)
         QTableWidgetItem *dateItem = new QTableWidgetItem(dateStr);
         commitTable->setItem(row, 2, dateItem);
         
+        // Store the OID for this row
+        commitOidMap[row] = oid;
+        
         git_commit_free(commit);
         row++;
     }
@@ -125,4 +132,17 @@ void CommitsDockWidget::populateCommitTable(git_repository *repo)
     git_revwalk_free(walker);
     
     qDebug() << "Loaded" << row << "commits";
+}
+
+void CommitsDockWidget::onCommitSelectionChanged()
+{
+    QList<QTableWidgetItem *> selectedItems = commitTable->selectedItems();
+    if (selectedItems.isEmpty()) {
+        return;
+    }
+    
+    int row = commitTable->row(selectedItems.first());
+    if (commitOidMap.contains(row)) {
+        emit commitSelected(commitOidMap[row]);
+    }
 }
