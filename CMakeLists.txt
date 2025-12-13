@@ -35,7 +35,7 @@ if(NOT libgit2_FOUND)
     endif()
 endif()
 
-if(NOT libgit2_FOUND AND NOT libgit2_FOUND)
+if(NOT libgit2_FOUND AND NOT TARGET PkgConfig::libgit2)
     message(FATAL_ERROR "libgit2 not found. Please install libgit2 via vcpkg (Windows) or system package manager (Linux/BSD)")
 endif()
 
