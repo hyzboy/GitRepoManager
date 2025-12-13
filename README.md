@@ -5,7 +5,7 @@ A cross-platform Git repository manager built with Qt6 and libgit2.
 ## Features
 
 - Built with modern C++17
-- Cross-platform support (Windows, Linux, BSD)
+- Cross-platform support (Windows, Linux, BSD, macOS)
 - Qt6-based user interface
 - Powered by libgit2 for Git operations
 
@@ -15,6 +15,7 @@ This project uses CMake as its build system and supports multiple platforms:
 
 - **Windows**: Uses vcpkg for dependency management
 - **Linux/BSD**: Uses system package managers
+- **macOS**: Uses Homebrew or vcpkg
 
 For detailed build instructions, see [BUILDING.md](BUILDING.md).
 
@@ -36,6 +37,18 @@ sudo apt install qt6-base-dev libqt6widgets6 libgit2-dev cmake ninja-build
 # Build
 mkdir build && cd build
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+cmake --build .
+```
+
+#### macOS
+```bash
+# Install dependencies via Homebrew
+brew install cmake ninja qt@6 libgit2
+
+# Build
+mkdir build && cd build
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH=$(brew --prefix qt@6) ..
 cmake --build .
 ```
 

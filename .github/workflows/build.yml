@@ -45,6 +45,43 @@ jobs:
         name: GitRepoManager-Ubuntu
         path: build/src/GitRepoManager
 
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        brew install cmake ninja qt@6 libgit2 pkg-config
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH=$(brew --prefix qt@6) \
+          ..
+    
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --verbose
+    
+    - name: Check executable
+      run: |
+        ls -lh build/src/GitRepoManager.app/Contents/MacOS/GitRepoManager
+        file build/src/GitRepoManager.app/Contents/MacOS/GitRepoManager
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitRepoManager-macOS
+        path: build/src/GitRepoManager.app
+
   build-windows:
     name: Build on Windows
     runs-on: windows-latest

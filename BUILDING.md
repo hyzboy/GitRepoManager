@@ -63,6 +63,22 @@ doas pkg_add cmake ninja
 doas pkg_add qt6 libgit2 pkgconf
 ```
 
+### macOS
+
+#### Using Homebrew (recommended)
+```bash
+brew install cmake ninja
+brew install qt@6 libgit2 pkg-config
+```
+
+#### Using vcpkg (optional)
+```bash
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg install qt6-base qt6-widgets libgit2
+```
+
 ## Building
 
 ### Windows with vcpkg
@@ -90,7 +106,7 @@ cmake -G Ninja ^
 cmake --build .
 ```
 
-### Linux/BSD
+### Linux/BSD/macOS
 
 Using **Ninja** (recommended):
 
@@ -107,7 +123,33 @@ Using **Unix Makefiles**:
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . -j$(nproc)
+cmake --build . -j$(nproc)  # Linux
+cmake --build . -j$(sysctl -n hw.ncpu)  # macOS
+```
+
+#### macOS with Homebrew Qt
+
+If Qt6 is installed via Homebrew and CMake cannot find it, you may need to specify the Qt path:
+
+```bash
+mkdir build
+cd build
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH=$(brew --prefix qt@6) \
+    ..
+cmake --build .
+```
+
+#### macOS with vcpkg
+
+```bash
+mkdir build
+cd build
+cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake \
+    ..
+cmake --build .
 ```
 
 ## Running
@@ -115,6 +157,7 @@ cmake --build . -j$(nproc)
 After building, the executable will be located in:
 - Windows: `build\src\Release\GitRepoManager.exe` (MSVC) or `build\src\GitRepoManager.exe` (Ninja)
 - Linux/BSD: `build/src/GitRepoManager`
+- macOS: `build/src/GitRepoManager.app/Contents/MacOS/GitRepoManager` (bundle) or `build/src/GitRepoManager` (executable)
 
 ### Windows
 ```cmd
@@ -131,6 +174,15 @@ cd build\src
 ### Linux/BSD
 ```bash
 ./build/src/GitRepoManager
+```
+
+### macOS
+```bash
+# If built as app bundle
+open build/src/GitRepoManager.app
+
+# Or run directly
+./build/src/GitRepoManager.app/Contents/MacOS/GitRepoManager
 ```
 
 ## Installation
@@ -162,16 +214,24 @@ Some distributions may have Qt6 in non-standard locations. You can help CMake fi
 cmake -DCMAKE_PREFIX_PATH=/path/to/qt6 ..
 ```
 
+### macOS: Qt6 not found
+
+If Qt6 is installed via Homebrew and CMake cannot find it:
+```bash
+cmake -DCMAKE_PREFIX_PATH=$(brew --prefix qt@6) ..
+```
+
 ### libgit2 not found
 
 Make sure libgit2 is installed:
 - **Windows**: Install via vcpkg: `vcpkg install libgit2`
 - **Linux**: Install development package (e.g., `libgit2-dev`, `libgit2-devel`)
 - **BSD**: Install via pkg/pkg_add
+- **macOS**: Install via Homebrew: `brew install libgit2`
 
-## Optional: Using vcpkg on Linux/BSD
+## Optional: Using vcpkg on Linux/BSD/macOS
 
-While not required, you can also use vcpkg on Linux/BSD:
+While not required, you can also use vcpkg on Linux/BSD/macOS:
 
 1. Install vcpkg:
    ```bash
