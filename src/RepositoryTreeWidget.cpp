@@ -3,6 +3,41 @@
 #include <QDebug>
 #include <cstring>
 
+namespace
+{   
+    // Helper: get current branch name (returns empty QString on error).
+    // If HEAD is detached, returns "detached: <short-oid>"
+    static QString getCurrentBranchName(git_repository *repo)
+    {
+        if (!repo) {
+            return QString();
+        }
+
+        git_reference *head = nullptr;
+        if (git_repository_head(&head, repo) != 0 || head == nullptr) {
+            // Could not resolve HEAD
+            return QString();
+        }
+
+        QString result;
+        const char *branch_name = nullptr;
+        if (git_branch_name(&branch_name, head) == 0 && branch_name) {
+            result = QString::fromUtf8(branch_name);
+        } else {
+            // Detached HEAD: show short SHA
+            const git_oid *oid = git_reference_target(head);
+            if (oid) {
+                char oid_str[GIT_OID_HEXSZ + 1] = {0};
+                git_oid_tostr(oid_str, sizeof(oid_str), oid);
+                result = QStringLiteral("detached: %1").arg(QString::fromUtf8(oid_str));
+            }
+        }
+
+        git_reference_free(head);
+        return result;
+    }
+}//namespace
+
 RepositoryTreeWidget::RepositoryTreeWidget(QWidget *parent)
     : QTreeWidget(parent), rootItem(nullptr)
 {
@@ -63,6 +98,9 @@ void RepositoryTreeWidget::addBranchesNode(QTreeWidgetItem *repoItem, git_reposi
         return;
     }
     
+    // Determine current branch (used to mark the current branch)
+    QString currentBranch = getCurrentBranchName(repo);
+
     // Get branch iterator
     git_branch_iterator *branch_iter = nullptr;
     int error = git_branch_iterator_new(&branch_iter, repo, GIT_BRANCH_ALL);
@@ -78,6 +116,13 @@ void RepositoryTreeWidget::addBranchesNode(QTreeWidgetItem *repoItem, git_reposi
             if (branch_name) {
                 QTreeWidgetItem *branchItem = new QTreeWidgetItem(branchesItem);
                 branchItem->setText(0, QString::fromUtf8(branch_name));
+
+                if(currentBranch == QString::fromUtf8(branch_name)) {
+                    branchItem->setText(0, branchItem->text(0) + "  (current)");
+                    QFont font = branchItem->font(0);
+                    font.setBold(true);
+                    branchItem->setFont(0, font);
+                }
             }
             
             git_reference_free(ref);
