@@ -2,6 +2,8 @@
 set(SOURCES
     main.cpp
     MainWindow.cpp
+    CommitsDockWidget.cpp
+    BottomDockWidget.cpp
     RepositoryTreeWidget.cpp
     DLG_About.cpp
 )

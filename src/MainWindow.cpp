@@ -47,24 +47,9 @@ void MainWindow::setupUI()
     // Create vertical splitter for right dock panels
     QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
     
-    // Create top dock widget
-    topDockWidget = new QDockWidget("Panel 1", this);
-    QWidget *topDockContent = new QWidget();
-    QVBoxLayout *topLayout = new QVBoxLayout(topDockContent);
-    topLayout->setContentsMargins(0, 0, 0, 0);
-    topLayout->addWidget(new QWidget());  // Empty placeholder
-    topDockWidget->setWidget(topDockContent);
-    
-    // Create bottom dock widget
-    bottomDockWidget = new QDockWidget("Panel 2", this);
-    QWidget *bottomDockContent = new QWidget();
-    QVBoxLayout *bottomLayout = new QVBoxLayout(bottomDockContent);
-    bottomLayout->setContentsMargins(0, 0, 0, 0);
-    bottomLayout->addWidget(new QWidget());  // Empty placeholder
-    bottomDockWidget->setWidget(bottomDockContent);
-
-    // Add dock widgets to right splitter
-    rightSplitter->addWidget(topDockWidget);
+    // Create right panels
+    createRightPanels();
+    rightSplitter->addWidget(commitsDockWidget);
     rightSplitter->addWidget(bottomDockWidget);
     rightSplitter->setOrientation(Qt::Vertical);
 
@@ -94,6 +79,15 @@ void MainWindow::createLeftPanel()
     
     // Add an example repository (this can be replaced with actual git operations)
     repositoryTree->addRepository("Current Repository");
+}
+
+void MainWindow::createRightPanels()
+{
+    // Create commits dock widget
+    commitsDockWidget = new CommitsDockWidget(this);
+    
+    // Create bottom dock widget
+    bottomDockWidget = new BottomDockWidget(this);
 }
 
 void MainWindow::createToolBar()
