@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QToolBar>
 #include <QFontMetrics>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -90,6 +91,13 @@ void MainWindow::createLeftPanel()
 void MainWindow::createToolBar()
 {
     QToolBar *toolBar = addToolBar("Tools");
+    
+    QPushButton *openButton = new QPushButton("Open", this);
+    connect(openButton, &QPushButton::clicked, this, &MainWindow::onOpenRepository);
+    toolBar->addWidget(openButton);
+    
+    toolBar->addSeparator();
+    
     QPushButton *aboutButton = new QPushButton("About", this);
     connect(aboutButton, &QPushButton::clicked, this, &MainWindow::showAbout);
     toolBar->addWidget(aboutButton);
@@ -99,4 +107,10 @@ void MainWindow::showAbout()
 {
     DLG_About about(this);
     about.exec();
+}
+
+void MainWindow::onOpenRepository()
+{
+    // TODO: Implement open repository dialog
+    qDebug() << "Open Repository button clicked";
 }

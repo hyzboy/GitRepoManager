@@ -14,6 +14,7 @@ public:
 
 private slots:
     void showAbout();
+    void onOpenRepository();
 
 private:
     void setupUI();
