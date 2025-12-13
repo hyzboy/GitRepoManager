@@ -7,6 +7,7 @@
 #include "RepositoryTreeWidget.h"
 #include "CommitsDockWidget.h"
 #include "BottomDockWidget.h"
+#include "CommitDetailWidget.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -21,13 +22,14 @@ private slots:
 
 private:
     void setupUI();
-    void createLeftPanel();
+    void createLeftPanels();
     void createToolBar();
     void createRightPanels();
     bool openRepositoryPath(const QString &repoPath);
 
     // UI Components
     RepositoryTreeWidget *repositoryTree;
+    CommitDetailWidget *commitDetailWidget;
     CommitsDockWidget *commitsDockWidget;
     BottomDockWidget *bottomDockWidget;
     

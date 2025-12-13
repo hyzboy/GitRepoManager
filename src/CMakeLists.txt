@@ -5,6 +5,7 @@ set(SOURCES
     CommitsDockWidget.cpp
     BottomDockWidget.cpp
     RepositoryTreeWidget.cpp
+    CommitDetailWidget.cpp
     DLG_About.cpp
 )
 

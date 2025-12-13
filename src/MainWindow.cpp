@@ -40,9 +40,15 @@ void MainWindow::setupUI()
     // Create horizontal splitter for left and right panels
     QSplitter *mainSplitter = new QSplitter(Qt::Horizontal);
 
-    // Create left panel
-    createLeftPanel();
-    mainSplitter->addWidget(repositoryTree);
+    // Create left panel with vertical splitter containing RepositoryTreeWidget and CommitDetailWidget
+    QSplitter *leftSplitter = new QSplitter(Qt::Vertical);
+    createLeftPanels();
+    leftSplitter->addWidget(repositoryTree);
+    leftSplitter->addWidget(commitDetailWidget);
+    leftSplitter->setStretchFactor(0, 1);
+    leftSplitter->setStretchFactor(1, 1);
+    
+    mainSplitter->addWidget(leftSplitter);
 
     // Create vertical splitter for right dock panels
     QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
@@ -72,13 +78,14 @@ void MainWindow::setupUI()
     setCentralWidget(centralWidget);
 }
 
-void MainWindow::createLeftPanel()
+void MainWindow::createLeftPanels()
 {
-    // Create RepositoryTreeWidget for left panel
+    // Create RepositoryTreeWidget for upper left panel
     repositoryTree = new RepositoryTreeWidget(this);
-    
-    // Add an example repository (this can be replaced with actual git operations)
     repositoryTree->addRepository("Current Repository");
+    
+    // Create CommitDetailWidget for lower left panel
+    commitDetailWidget = new CommitDetailWidget(this);
 }
 
 void MainWindow::createRightPanels()
