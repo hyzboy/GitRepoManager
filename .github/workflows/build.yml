@@ -1,0 +1,83 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master, develop, copilot/** ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-ubuntu:
+    name: Build on Ubuntu
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential cmake ninja-build pkg-config
+        sudo apt install -y qt6-base-dev qt6-base-dev-tools libqt6widgets6 libgit2-dev
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+    
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --verbose
+    
+    - name: Check executable
+      run: |
+        ls -lh build/src/GitRepoManager
+        file build/src/GitRepoManager
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitRepoManager-Ubuntu
+        path: build/src/GitRepoManager
+
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'c8696863d371ab7f46e213d8f5ca923c4ff5c43c'
+    
+    - name: Install dependencies
+      run: |
+        vcpkg install qt6-base:x64-windows qt6-widgets:x64-windows libgit2:x64-windows
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -G "Visual Studio 17 2022" -A x64 `
+          -DCMAKE_TOOLCHAIN_FILE="${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" `
+          ..
+    
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release --verbose
+    
+    - name: Check executable
+      run: |
+        ls build\src\Release\GitRepoManager.exe
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitRepoManager-Windows
+        path: build/src/Release/GitRepoManager.exe
