@@ -121,6 +121,11 @@ void MainWindow::onOpenRepository()
         if (openRepositoryPath(dirPath)) {
             repositoryTree->clearRepositories();
             repositoryTree->addRepository(dirPath, currentRepo);
+            
+            // Load commits into the commits dock widget
+            if (commitsDockWidget) {
+                commitsDockWidget->loadCommits(currentRepo);
+            }
         }
     }
 }
