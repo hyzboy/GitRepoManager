@@ -146,6 +146,9 @@ void CommitDetailWidget::displayCommitDetail(const git_oid &oid)
     messageLabel->setText(QString::fromUtf8(message));
     
     git_commit_free(commit);
+    
+    // Emit signal to notify BottomDockWidget
+    emit commitDetailsChanged(oid);
 }
 
 void CommitDetailWidget::clearDetail()

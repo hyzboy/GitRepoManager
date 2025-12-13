@@ -15,6 +15,9 @@ public:
 
     void setRepository(git_repository *repo);
 
+signals:
+    void commitDetailsChanged(const git_oid &oid);
+
 public slots:
     void displayCommitDetail(const git_oid &oid);
 
