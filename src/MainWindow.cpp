@@ -4,7 +4,6 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QSplitter>
-#include <QStandardItemModel>
 #include <QPushButton>
 #include <QToolBar>
 #include <QFontMetrics>
@@ -34,7 +33,7 @@ void MainWindow::setupUI()
 
     // Create left panel
     createLeftPanel();
-    mainSplitter->addWidget(treeView);
+    mainSplitter->addWidget(repositoryTree);
 
     // Create vertical splitter for right dock panels
     QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
@@ -65,8 +64,8 @@ void MainWindow::setupUI()
     mainSplitter->setStretchFactor(0, 0);
     mainSplitter->setStretchFactor(1, 1);
     
-    // Set initial sizes: left panel ~20 character widths, right panel fills remaining space
-    QFontMetrics fm(treeView->font());
+    // Set initial sizes: left panel ~30 character widths, right panel fills remaining space
+    QFontMetrics fm(repositoryTree->font());
     int charWidth = fm.averageCharWidth();
     int leftPanelWidth = charWidth * 30;
     mainSplitter->setSizes(QList<int>() << leftPanelWidth << (800 - leftPanelWidth));
@@ -84,24 +83,11 @@ void MainWindow::setupUI()
 
 void MainWindow::createLeftPanel()
 {
-    // Create TreeView for left panel
-    treeView = new QTreeView(this);
+    // Create RepositoryTreeWidget for left panel
+    repositoryTree = new RepositoryTreeWidget(this);
     
-    // Create a simple model for the tree
-    QStandardItemModel *model = new QStandardItemModel(this);
-    QStandardItem *rootItem = model->invisibleRootItem();
-    
-    // Add some example items
-    QStandardItem *item1 = new QStandardItem("Repositories");
-    QStandardItem *item2 = new QStandardItem("Recent");
-    QStandardItem *item3 = new QStandardItem("Favorites");
-    
-    rootItem->appendRow(item1);
-    rootItem->appendRow(item2);
-    rootItem->appendRow(item3);
-    
-    treeView->setModel(model);
-    treeView->expandAll();
+    // Add an example repository (this can be replaced with actual git operations)
+    repositoryTree->addRepository("Current Repository");
 }
 
 void MainWindow::showAbout()

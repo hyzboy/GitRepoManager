@@ -2,8 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTreeView>
 #include <QDockWidget>
+#include "RepositoryTreeWidget.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -20,7 +20,7 @@ private:
     void createLeftPanel();
 
     // UI Components
-    QTreeView *treeView;
+    RepositoryTreeWidget *repositoryTree;
     QDockWidget *topDockWidget;
     QDockWidget *bottomDockWidget;
 };

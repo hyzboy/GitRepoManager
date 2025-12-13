@@ -2,6 +2,7 @@
 set(SOURCES
     main.cpp
     MainWindow.cpp
+    RepositoryTreeWidget.cpp
     DLG_About.cpp
 )
 
