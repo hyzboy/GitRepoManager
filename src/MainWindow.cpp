@@ -73,10 +73,7 @@ void MainWindow::setupUI()
     mainLayout->addWidget(mainSplitter);
 
     // Create toolbar
-    QToolBar *toolBar = addToolBar("Tools");
-    QPushButton *aboutButton = new QPushButton("About", this);
-    connect(aboutButton, &QPushButton::clicked, this, &MainWindow::showAbout);
-    toolBar->addWidget(aboutButton);
+    createToolBar();
 
     setCentralWidget(centralWidget);
 }
@@ -88,6 +85,14 @@ void MainWindow::createLeftPanel()
     
     // Add an example repository (this can be replaced with actual git operations)
     repositoryTree->addRepository("Current Repository");
+}
+
+void MainWindow::createToolBar()
+{
+    QToolBar *toolBar = addToolBar("Tools");
+    QPushButton *aboutButton = new QPushButton("About", this);
+    connect(aboutButton, &QPushButton::clicked, this, &MainWindow::showAbout);
+    toolBar->addWidget(aboutButton);
 }
 
 void MainWindow::showAbout()

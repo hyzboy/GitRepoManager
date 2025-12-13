@@ -18,6 +18,7 @@ private slots:
 private:
     void setupUI();
     void createLeftPanel();
+    void createToolBar();
 
     // UI Components
     RepositoryTreeWidget *repositoryTree;
