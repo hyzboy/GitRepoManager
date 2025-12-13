@@ -1,6 +1,7 @@
 # Source files
 set(SOURCES
     main.cpp
+    MainWindow.cpp
     DLG_About.cpp
 )
 
