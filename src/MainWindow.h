@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QDockWidget>
+#include <git2.h>
 #include "RepositoryTreeWidget.h"
 
 class MainWindow : public QMainWindow {
@@ -20,11 +21,15 @@ private:
     void setupUI();
     void createLeftPanel();
     void createToolBar();
+    bool openRepositoryPath(const QString &repoPath);
 
     // UI Components
     RepositoryTreeWidget *repositoryTree;
     QDockWidget *topDockWidget;
     QDockWidget *bottomDockWidget;
+    
+    // Repository data
+    git_repository *currentRepo;
 };
 
 #endif // MAINWINDOW_H

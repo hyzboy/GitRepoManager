@@ -8,9 +8,12 @@
 #include <QToolBar>
 #include <QFontMetrics>
 #include <QDebug>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent), currentRepo(nullptr)
 {
     setWindowTitle("Git Repository Manager");
     setMinimumSize(800, 600);
@@ -20,6 +23,11 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    // Close repository if it's open
+    if (currentRepo) {
+        git_repository_free(currentRepo);
+        currentRepo = nullptr;
+    }
 }
 
 void MainWindow::setupUI()
@@ -111,6 +119,45 @@ void MainWindow::showAbout()
 
 void MainWindow::onOpenRepository()
 {
-    // TODO: Implement open repository dialog
-    qDebug() << "Open Repository button clicked";
+    QString dirPath = QFileDialog::getExistingDirectory(this,
+        tr("Open Git Repository"), "",
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    
+    if (!dirPath.isEmpty()) {
+        if (openRepositoryPath(dirPath)) {
+            repositoryTree->clearRepositories();
+            repositoryTree->addRepository(dirPath, currentRepo);
+        }
+    }
+}
+
+bool MainWindow::openRepositoryPath(const QString &repoPath)
+{
+    // Close previous repository if open
+    if (currentRepo) {
+        git_repository_free(currentRepo);
+        currentRepo = nullptr;
+    }
+    
+    // Convert QString to UTF-8 for libgit2
+    QByteArray repoPathBytes = repoPath.toUtf8();
+    const char *path = repoPathBytes.constData();
+    
+    // Try to open repository
+    int error = git_repository_open(&currentRepo, path);
+    
+    if (error != 0) {
+        const git_error *giterr = git_error_last();
+        QString errorMsg = QString("Failed to open repository:\n%1")
+            .arg(giterr ? giterr->message : "Unknown error");
+        QMessageBox::critical(this, "Error", errorMsg);
+        return false;
+    }
+    
+    // Successfully opened repository
+    QString repoName = QFileInfo(repoPath).fileName();
+    setWindowTitle(QString("Git Repository Manager - %1").arg(repoName));
+    qDebug() << "Repository opened:" << repoPath;
+    
+    return true;
 }

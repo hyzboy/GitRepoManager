@@ -3,6 +3,7 @@
 
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
+#include <git2.h>
 
 class RepositoryTreeWidget : public QTreeWidget {
     Q_OBJECT
@@ -11,16 +12,16 @@ public:
     explicit RepositoryTreeWidget(QWidget *parent = nullptr);
     ~RepositoryTreeWidget();
 
-    void addRepository(const QString &repoPath);
+    void addRepository(const QString &repoPath, git_repository *repo = nullptr);
     void clearRepositories();
 
 private:
     void setupTree();
-    QTreeWidgetItem *createRepositoryNode(const QString &repoPath);
-    void addBranchesNode(QTreeWidgetItem *repoItem);
-    void addTagsNode(QTreeWidgetItem *repoItem);
-    void addRemotesNode(QTreeWidgetItem *repoItem);
-    void addSubmodulesNode(QTreeWidgetItem *repoItem);
+    QTreeWidgetItem *createRepositoryNode(const QString &repoPath, git_repository *repo);
+    void addBranchesNode(QTreeWidgetItem *repoItem, git_repository *repo);
+    void addTagsNode(QTreeWidgetItem *repoItem, git_repository *repo);
+    void addRemotesNode(QTreeWidgetItem *repoItem, git_repository *repo);
+    void addSubmodulesNode(QTreeWidgetItem *repoItem, git_repository *repo);
 
     // UI Components
     QTreeWidgetItem *rootItem;
