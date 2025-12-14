@@ -80,10 +80,10 @@ void SyntaxManager::registerExtensions(const SyntaxDefinition &definition)
                 m_extensionMap[extension] = definition.name;
             }
         } else {
-            // 处理不带通配符的扩展名
-            QString extension = normalizeExtension(pattern);
-            if (!extension.isEmpty()) {
-                m_extensionMap[extension] = definition.name;
+            // 处理完整文件名（例如 "CMakeLists.txt", "Makefile", ".gitignore"）
+            QString normalizedName = normalizeFilename(pattern);
+            if (!normalizedName.isEmpty()) {
+                m_filenameMap[normalizedName] = definition.name;
             }
         }
     }
@@ -101,6 +101,11 @@ QString SyntaxManager::normalizeExtension(const QString &extension) const
     return normalized;
 }
 
+QString SyntaxManager::normalizeFilename(const QString &filename) const
+{
+    return filename.trimmed().toLower();
+}
+
 SyntaxDefinition SyntaxManager::getSyntaxByExtension(const QString &extension) const
 {
     QString normalized = normalizeExtension(extension);
@@ -116,9 +121,25 @@ SyntaxDefinition SyntaxManager::getSyntaxByExtension(const QString &extension) c
 SyntaxDefinition SyntaxManager::getSyntaxByFilename(const QString &filename) const
 {
     QFileInfo fileInfo(filename);
-    QString extension = fileInfo.suffix();
+    QString baseFilename = fileInfo.fileName();
     
-    return getSyntaxByExtension(extension);
+    // 首先检查完整文件名匹配（例如 CMakeLists.txt, Makefile）
+    QString normalizedFilename = normalizeFilename(baseFilename);
+    if (m_filenameMap.contains(normalizedFilename)) {
+        QString syntaxName = m_filenameMap[normalizedFilename];
+        SyntaxDefinition def = m_syntaxMap.value(syntaxName, SyntaxDefinition());
+        if (!def.name.isEmpty()) {
+            return def;
+        }
+    }
+    
+    // 如果没有完整文件名匹配，尝试通过扩展名匹配
+    QString extension = fileInfo.suffix();
+    if (!extension.isEmpty()) {
+        return getSyntaxByExtension(extension);
+    }
+    
+    return SyntaxDefinition();
 }
 
 SyntaxDefinition SyntaxManager::getSyntaxByName(const QString &name) const

@@ -156,9 +156,33 @@ void BottomDockWidget::onSyntaxChanged(int index)
     QString syntaxName = syntaxComboBox->currentText();
     qDebug() << "Syntax changed to:" << syntaxName;
     
-    // TODO: Apply syntax highlighting to diffDisplay
-    // If "Auto" is selected, detect syntax from file extension
-    // Otherwise, use the selected syntax definition
+    // If user manually changes syntax, re-display the current file with new syntax
+    // Get the currently selected file
+    QListWidgetItem *item = fileList->currentItem();
+    if (item) {
+        int row = fileList->row(item);
+        QString filePath;
+        
+        if (filePathMap.contains(row)) {
+            filePath = filePathMap[row];
+        } else {
+            // Extract file path for initial commit
+            QString itemText = item->text();
+            if (itemText.startsWith("[") && itemText.indexOf("] ") > 0) {
+                filePath = itemText.mid(itemText.indexOf("] ") + 2);
+            }
+        }
+        
+        // If we have a file path and user selected "Auto", re-detect syntax
+        if (!filePath.isEmpty() && index == 0) {
+            // Re-trigger showFileDiff to auto-detect syntax
+            showFileDiff(filePath);
+        }
+    }
+    
+    // TODO: Apply syntax highlighting to diffDisplay with selected syntax
+    // If "Auto" is selected (index == 0), syntax is auto-detected in showFileDiff
+    // Otherwise, use the manually selected syntax definition
 }
 
 void BottomDockWidget::setupUI()
@@ -181,6 +205,13 @@ void BottomDockWidget::setupUI()
     
     fileList = new QListWidget(this);
     connect(fileList, &QListWidget::currentRowChanged, this, &BottomDockWidget::onFileSelected);
+    
+    // Set minimum and initial width for file list based on character width
+    QFontMetrics fm(fileList->font());
+    int charWidth = fm.averageCharWidth();
+    int fileListWidth = charWidth * 32;
+    leftPanel->setMinimumWidth(fileListWidth / 2); // Minimum 16 chars
+    
     leftLayout->addWidget(fileList);
     
     mainSplitter->addWidget(leftPanel);
@@ -232,9 +263,14 @@ void BottomDockWidget::setupUI()
     
     mainSplitter->addWidget(rightPanel);
     
-    // Set splitter proportions (1:2 ratio - file list smaller, diff larger)
+    // Set stretch factors: file list gets less space, diff display gets more
+    // Ratio approximately 1:3 (file list : diff display)
     mainSplitter->setStretchFactor(0, 1);
-    mainSplitter->setStretchFactor(1, 2);
+    mainSplitter->setStretchFactor(1, 4);
+    
+    // Set initial sizes based on character width
+    // This will be used as a hint when the widget is first shown
+    mainSplitter->setSizes(QList<int>() << fileListWidth << (fileListWidth * 4));
     
     mainLayout->addWidget(mainSplitter);
     setWidget(content);
@@ -364,6 +400,24 @@ void BottomDockWidget::showFileDiff(const QString &filePath)
     if (!currentRepo || filePath.isEmpty()) {
         diffDisplay->setPlainText("No file selected or repository not available.");
         return;
+    }
+    
+    // Auto-select syntax based on file extension if in Auto mode
+    if (syntaxComboBox && syntaxManager) {
+        // Get syntax definition for this file
+        SyntaxDefinition syntaxDef = syntaxManager->getSyntaxByFilename(filePath);
+        if (!syntaxDef.name.isEmpty()) {
+            // Find and select the syntax in the combo box
+            int syntaxIndex = syntaxComboBox->findText(syntaxDef.name);
+            if (syntaxIndex > 0) { // > 0 to skip "Auto" at index 0
+                // Temporarily block signals to avoid triggering onSyntaxChanged
+                syntaxComboBox->blockSignals(true);
+                syntaxComboBox->setCurrentIndex(syntaxIndex);
+                syntaxComboBox->blockSignals(false);
+                
+                qDebug() << "Auto-selected syntax:" << syntaxDef.name << "for file:" << filePath;
+            }
+        }
     }
     
     // Get commit object

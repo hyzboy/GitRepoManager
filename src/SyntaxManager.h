@@ -41,6 +41,9 @@ private:
     // 存储扩展名映射：扩展名 -> 语法名称
     QMap<QString, QString> m_extensionMap;
     
+    // 存储完整文件名映射：文件名 -> 语法名称（用于CMakeLists.txt等特殊文件）
+    QMap<QString, QString> m_filenameMap;
+    
     // 加载单个语法文件
     bool loadSyntaxFile(const QString &filePath);
     
@@ -49,6 +52,9 @@ private:
     
     // 规范化扩展名（去除前导点号，转小写）
     QString normalizeExtension(const QString &extension) const;
+    
+    // 规范化文件名（转小写）
+    QString normalizeFilename(const QString &filename) const;
 };
 
 #endif // SYNTAXMANAGER_H
