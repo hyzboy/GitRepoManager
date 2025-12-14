@@ -8,6 +8,7 @@
 #include <QMap>
 
 class QSplitter;
+class SyntaxManager;
 
 class BottomDockWidget : public QDockWidget {
     Q_OBJECT
@@ -29,6 +30,7 @@ private:
     void clearDisplay();
     void populateFileList(git_commit *commit);
     void showFileDiff(const QString &filePath);
+    void loadSyntaxDefinitions();
 
     // UI Components
     QSplitter *mainSplitter;
@@ -39,6 +41,9 @@ private:
     git_repository *currentRepo;
     git_oid currentCommitOid;
     QMap<int, QString> filePathMap;  // Map row index to file path
+    
+    // Syntax highlighting
+    SyntaxManager *syntaxManager;
 };
 
 #endif // BOTTOMDOCKWIDGET_H

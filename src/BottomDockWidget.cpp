@@ -1,4 +1,5 @@
 #include "BottomDockWidget.h"
+#include "SyntaxManager.h"
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -7,15 +8,48 @@
 #include <QTextEdit>
 #include <QLabel>
 #include <QDebug>
+#include <QCoreApplication>
+#include <QDir>
 
 BottomDockWidget::BottomDockWidget(QWidget *parent)
-    : QDockWidget("Commit Changes", parent), currentRepo(nullptr)
+    : QDockWidget("Commit Changes", parent), currentRepo(nullptr), syntaxManager(nullptr)
 {
     setupUI();
+    
+    // Initialize syntax manager
+    syntaxManager = new SyntaxManager(this);
+    loadSyntaxDefinitions();
 }
 
 BottomDockWidget::~BottomDockWidget()
 {
+    // SyntaxManager will be automatically deleted as it's a child of this widget
+}
+
+void BottomDockWidget::loadSyntaxDefinitions()
+{
+    QString appDir = QCoreApplication::applicationDirPath();
+    
+    bool loaded = false;
+    QDir dir(appDir + "/syntax");
+
+    if (dir.exists())
+    {
+        qDebug() << "Attempting to load syntax definitions from:" << dir.absolutePath();
+        if (syntaxManager->loadSyntaxDirectory(dir.absolutePath()))
+        {
+            qDebug()<< "Successfully loaded" << syntaxManager->syntaxCount()
+                    << "syntax definitions from:" << dir.absolutePath();
+            loaded = true;
+
+        }
+    }
+    
+    if (!loaded) {
+        qWarning() << "Failed to load syntax definitions from any known path";
+        qDebug() << "Tried paths:";
+            qDebug() << "  -" << appDir;
+    }
 }
 
 void BottomDockWidget::setupUI()
