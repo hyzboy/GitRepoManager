@@ -72,18 +72,27 @@ void SyntaxManager::registerExtensions(const SyntaxDefinition &definition)
         if (pattern.startsWith("*.")) {
             QString extension = normalizeExtension(pattern.mid(2));
             if (!extension.isEmpty()) {
-                m_extensionMap[extension] = definition.name;
+                // 添加到扩展名映射列表中
+                if (!m_extensionMap[extension].contains(definition.name)) {
+                    m_extensionMap[extension].append(definition.name);
+                }
             }
         } else if (pattern.startsWith("*")) {
             QString extension = normalizeExtension(pattern.mid(1));
             if (!extension.isEmpty()) {
-                m_extensionMap[extension] = definition.name;
+                // 添加到扩展名映射列表中
+                if (!m_extensionMap[extension].contains(definition.name)) {
+                    m_extensionMap[extension].append(definition.name);
+                }
             }
         } else {
             // 处理完整文件名（例如 "CMakeLists.txt", "Makefile", ".gitignore"）
             QString normalizedName = normalizeFilename(pattern);
             if (!normalizedName.isEmpty()) {
-                m_filenameMap[normalizedName] = definition.name;
+                // 添加到文件名映射列表中
+                if (!m_filenameMap[normalizedName].contains(definition.name)) {
+                    m_filenameMap[normalizedName].append(definition.name);
+                }
             }
         }
     }
@@ -106,13 +115,44 @@ QString SyntaxManager::normalizeFilename(const QString &filename) const
     return filename.trimmed().toLower();
 }
 
+SyntaxDefinition SyntaxManager::selectByPriority(const QStringList &syntaxNames) const
+{
+    if (syntaxNames.isEmpty()) {
+        return SyntaxDefinition();
+    }
+    
+    // 如果只有一个，直接返回
+    if (syntaxNames.size() == 1) {
+        return m_syntaxMap.value(syntaxNames.first(), SyntaxDefinition());
+    }
+    
+    // 找出优先级最高的语法定义
+    QString bestSyntax;
+    int highestPriority = -1;
+    
+    for (const QString &syntaxName : syntaxNames) {
+        const SyntaxDefinition &def = m_syntaxMap.value(syntaxName);
+        if (def.priority > highestPriority) {
+            highestPriority = def.priority;
+            bestSyntax = syntaxName;
+        }
+    }
+    
+    if (!bestSyntax.isEmpty()) {
+        return m_syntaxMap.value(bestSyntax, SyntaxDefinition());
+    }
+    
+    // 如果都没有优先级，返回第一个
+    return m_syntaxMap.value(syntaxNames.first(), SyntaxDefinition());
+}
+
 SyntaxDefinition SyntaxManager::getSyntaxByExtension(const QString &extension) const
 {
     QString normalized = normalizeExtension(extension);
     
     if (m_extensionMap.contains(normalized)) {
-        QString syntaxName = m_extensionMap[normalized];
-        return m_syntaxMap.value(syntaxName, SyntaxDefinition());
+        const QStringList &syntaxNames = m_extensionMap[normalized];
+        return selectByPriority(syntaxNames);
     }
     
     return SyntaxDefinition();
@@ -126,11 +166,8 @@ SyntaxDefinition SyntaxManager::getSyntaxByFilename(const QString &filename) con
     // 首先检查完整文件名匹配（例如 CMakeLists.txt, Makefile）
     QString normalizedFilename = normalizeFilename(baseFilename);
     if (m_filenameMap.contains(normalizedFilename)) {
-        QString syntaxName = m_filenameMap[normalizedFilename];
-        SyntaxDefinition def = m_syntaxMap.value(syntaxName, SyntaxDefinition());
-        if (!def.name.isEmpty()) {
-            return def;
-        }
+        const QStringList &syntaxNames = m_filenameMap[normalizedFilename];
+        return selectByPriority(syntaxNames);
     }
     
     // 如果没有完整文件名匹配，尝试通过扩展名匹配

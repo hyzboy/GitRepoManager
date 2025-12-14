@@ -56,6 +56,9 @@ bool SyntaxLoader::loadSyntax(const QString &syntaxFilePath)
     m_definition.style = root.attribute("style");
     m_definition.indenter = root.attribute("indenter");
     
+    // 读取优先级，默认为0
+    m_definition.priority = root.attribute("priority", "0").toInt();
+    
     QString caseSensitiveStr = root.attribute("casesensitive", "1");
     m_definition.caseSensitive = (caseSensitiveStr == "1" || caseSensitiveStr == "true");
     
@@ -77,7 +80,7 @@ bool SyntaxLoader::loadSyntax(const QString &syntaxFilePath)
         parseHighlighting(highlightingNodes.at(0).toElement());
     }
     
-    qDebug() << "成功加载语法定义:" << m_definition.name;
+    qDebug() << "成功加载语法定义:" << m_definition.name << "优先级:" << m_definition.priority;
     return true;
 }
 

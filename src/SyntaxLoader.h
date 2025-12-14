@@ -71,6 +71,7 @@ public:
     QString style;
     QStringList extensions;
     QStringList mimeTypes;
+    int priority = 0;  // 优先级，用于多个语法匹配同一文件时选择
     
     QMap<QString, KeywordList> keywords;
     QMap<QString, Context> contexts;

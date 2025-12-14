@@ -38,11 +38,11 @@ private:
     // 存储语法定义：语法名称 -> SyntaxDefinition
     QMap<QString, SyntaxDefinition> m_syntaxMap;
     
-    // 存储扩展名映射：扩展名 -> 语法名称
-    QMap<QString, QString> m_extensionMap;
+    // 存储扩展名映射：扩展名 -> 语法名称列表（按优先级排序）
+    QMap<QString, QStringList> m_extensionMap;
     
-    // 存储完整文件名映射：文件名 -> 语法名称（用于CMakeLists.txt等特殊文件）
-    QMap<QString, QString> m_filenameMap;
+    // 存储完整文件名映射：文件名 -> 语法名称列表（按优先级排序）
+    QMap<QString, QStringList> m_filenameMap;
     
     // 加载单个语法文件
     bool loadSyntaxFile(const QString &filePath);
@@ -55,6 +55,9 @@ private:
     
     // 规范化文件名（转小写）
     QString normalizeFilename(const QString &filename) const;
+    
+    // 根据优先级选择最佳语法定义
+    SyntaxDefinition selectByPriority(const QStringList &syntaxNames) const;
 };
 
 #endif // SYNTAXMANAGER_H
