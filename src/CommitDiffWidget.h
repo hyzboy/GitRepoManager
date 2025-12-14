@@ -2,16 +2,14 @@
 #define COMMITDIFFWIDGET_H
 
 #include <QDockWidget>
-#include <QListWidget>
-#include <QTextEdit>
 #include <git2.h>
-#include <QMap>
 
 class QSplitter;
-class QComboBox;
 class SyntaxManager;
 class ThemeManager;
-class SyntaxHighlighter;
+class GitDiffProvider;
+class FileListWidget;
+class DiffViewWidget;
 
 class CommitDiffWidget : public QDockWidget {
     Q_OBJECT
@@ -23,46 +21,33 @@ public:
     void setRepository(git_repository *repo);
     
     // Theme management
-    ThemeManager* getThemeManager() const { return themeManager; }
+    ThemeManager* getThemeManager() const { return m_themeManager; }
 
 public slots:
     void displayCommitFiles(const git_oid &oid);
 
 private slots:
-    void onFileSelected();
-    void onThemeChanged(int index);
-    void onSyntaxChanged(int index);
+    void onFileSelected(const QString &filePath);
 
 private:
     void setupUI();
     void clearDisplay();
-    void populateFileList(git_commit *commit);
-    void showFileDiff(const QString &filePath);
     void loadSyntaxDefinitions();
     void loadThemeDefinitions();
-    void populateThemeComboBox();
-    void populateSyntaxComboBox();
-    void applySyntaxHighlighting();
 
     // UI Components
-    QSplitter *mainSplitter;
-    QListWidget *fileList;
-    QTextEdit *diffDisplay;
-    QComboBox *themeComboBox;
-    QComboBox *syntaxComboBox;
+    QSplitter *m_mainSplitter;
+    FileListWidget *m_fileListWidget;
+    DiffViewWidget *m_diffViewWidget;
     
-    // Git data
-    git_repository *currentRepo;
-    git_oid currentCommitOid;
-    QMap<int, QString> filePathMap;  // Map row index to file path
+    // Git operations
+    GitDiffProvider *m_diffProvider;
+    git_repository *m_currentRepo;
+    git_oid m_currentCommitOid;
     
     // Syntax highlighting
-    SyntaxManager *syntaxManager;
-    ThemeManager *themeManager;
-    SyntaxHighlighter *syntaxHighlighter;
-    
-    // Current file path for re-applying highlighting
-    QString currentFilePath;
+    SyntaxManager *m_syntaxManager;
+    ThemeManager *m_themeManager;
 };
 
 #endif // COMMITDIFFWIDGET_H

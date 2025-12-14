@@ -7,6 +7,9 @@ set(SOURCES
     RepositoryTreeWidget.cpp
     CommitDetailWidget.cpp
     DLG_About.cpp
+    GitDiffProvider.cpp
+    FileListWidget.cpp
+    DiffViewWidget.cpp
 )
 
 set(SyntaxHighlighter_SOURCES
@@ -19,6 +22,12 @@ set(SyntaxHighlighter_SOURCES
 )
 
 source_group("SyntaxHighlighter" FILES ${SyntaxHighlighter_SOURCES})
+
+source_group("GitDiff" FILES 
+    GitDiffProvider.cpp
+    FileListWidget.cpp
+    DiffViewWidget.cpp
+)
 
 # Find Qt
 find_package(Qt6 COMPONENTS Core Widgets Xml REQUIRED)
