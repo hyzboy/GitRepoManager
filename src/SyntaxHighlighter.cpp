@@ -10,6 +10,11 @@ SyntaxHighlighter::SyntaxHighlighter(QTextDocument *parent)
 void SyntaxHighlighter::setSyntaxDefinition(const SyntaxDefinition &definition)
 {
     m_definition = definition;
+    qDebug() << "SyntaxHighlighter::setSyntaxDefinition called with:" << definition.name;
+    qDebug() << "  Contexts count:" << definition.contexts.size();
+    qDebug() << "  Keywords count:" << definition.keywords.size();
+    qDebug() << "  ItemDatas count:" << definition.itemDatas.size();
+    
     initFormats();
     rehighlight();
 }
@@ -17,6 +22,8 @@ void SyntaxHighlighter::setSyntaxDefinition(const SyntaxDefinition &definition)
 void SyntaxHighlighter::setTheme(ThemeLoader *themeLoader)
 {
     m_themeLoader = themeLoader;
+    qDebug() << "SyntaxHighlighter::setTheme called with:" << (themeLoader ? themeLoader->themeName() : "null");
+    
     initFormats();
     rehighlight();
 }
@@ -24,10 +31,13 @@ void SyntaxHighlighter::setTheme(ThemeLoader *themeLoader)
 void SyntaxHighlighter::initFormats()
 {
     if (!m_themeLoader) {
+        qDebug() << "SyntaxHighlighter::initFormats - no theme loader";
         return;
     }
     
     m_formats.clear();
+    
+    qDebug() << "SyntaxHighlighter::initFormats - creating formats for" << m_definition.itemDatas.size() << "items";
     
     // 为每个itemData创建格式
     for (auto it = m_definition.itemDatas.constBegin(); 
@@ -37,21 +47,27 @@ void SyntaxHighlighter::initFormats()
         
         TextStyle style = m_themeLoader->getTextStyle(styleName);
         m_formats[attributeName] = style.toTextCharFormat();
+        
+        qDebug() << "  Format created:" << attributeName << "->" << styleName;
     }
 }
 
 void SyntaxHighlighter::highlightBlock(const QString &text)
 {
-    if (text.isEmpty() || m_definition.contexts.isEmpty()) {
+    if (text.isEmpty()) {
         return;
     }
     
-    // 获取当前上下文（从前一个块或使用默认值）
-    QString currentContext = "Main";
-    int previousState = previousBlockState();
-    if (previousState >= 0) {
-        // 可以从previousState恢复上下文
-        // 这里简化处理，实际应该保存完整的上下文栈
+    if (m_definition.contexts.isEmpty()) {
+        return;
+    }
+    
+    // C++ 语法定义使用 "Normal" 作为默认上下文
+    QString currentContext = "Normal";
+    
+    // 如果找不到 "Normal"，使用第一个可用的上下文
+    if (!m_definition.contexts.contains(currentContext) && !m_definition.contexts.isEmpty()) {
+        currentContext = m_definition.contexts.firstKey();
     }
     
     Context context = m_definition.getContext(currentContext);
@@ -66,6 +82,45 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
         
         // 尝试应用每个规则
         for (const ContextRule &rule : context.rules) {
+            // 处理 IncludeRules
+            if (rule.type == ContextRule::IncludeRules) {
+                // 解析包含的上下文名称
+                QString includeContext = rule.context;
+                // 处理 ##ISO C++ 这样的外部引用（暂时跳过）
+                if (includeContext.startsWith("##")) {
+                    continue;
+                }
+                
+                // 获取要包含的上下文
+                Context includedContext = m_definition.getContext(includeContext);
+                if (!includedContext.name.isEmpty()) {
+                    // 递归尝试包含上下文的规则
+                    for (const ContextRule &includedRule : includedContext.rules) {
+                        int oldPosition = position;
+                        if (applyRule(includedRule, text, position, currentContext)) {
+                            matched = true;
+                            
+                            // 处理上下文切换
+                            if (!includedRule.context.isEmpty() && includedRule.context != "#stay") {
+                                QString newContext = resolveContext(includedRule.context, currentContext);
+                                if (!newContext.isEmpty() && m_definition.contexts.contains(newContext)) {
+                                    currentContext = newContext;
+                                    context = m_definition.getContext(currentContext);
+                                }
+                            }
+                            break;
+                        }
+                        position = oldPosition;
+                    }
+                    
+                    if (matched) {
+                        break;
+                    }
+                }
+                continue;
+            }
+            
+            // 应用普通规则
             int oldPosition = position;
             if (applyRule(rule, text, position, currentContext)) {
                 matched = true;
@@ -73,7 +128,7 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
                 // 处理上下文切换
                 if (!rule.context.isEmpty() && rule.context != "#stay") {
                     QString newContext = resolveContext(rule.context, currentContext);
-                    if (!newContext.isEmpty()) {
+                    if (!newContext.isEmpty() && m_definition.contexts.contains(newContext)) {
                         currentContext = newContext;
                         context = m_definition.getContext(currentContext);
                     }
@@ -85,7 +140,10 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
         }
         
         if (!matched) {
-            // 没有规则匹配，前进一个字符
+            // 没有规则匹配，应用默认格式并前进一个字符
+            if (!context.attribute.isEmpty()) {
+                applyFormat(position, 1, context.attribute);
+            }
             position++;
         }
     }
