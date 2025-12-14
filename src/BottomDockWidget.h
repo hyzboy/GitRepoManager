@@ -8,7 +8,9 @@
 #include <QMap>
 
 class QSplitter;
+class QComboBox;
 class SyntaxManager;
+class ThemeManager;
 
 class BottomDockWidget : public QDockWidget {
     Q_OBJECT
@@ -18,12 +20,16 @@ public:
     ~BottomDockWidget();
 
     void setRepository(git_repository *repo);
+    
+    // Theme management
+    ThemeManager* getThemeManager() const { return themeManager; }
 
 public slots:
     void displayCommitFiles(const git_oid &oid);
 
 private slots:
     void onFileSelected();
+    void onThemeChanged(int index);
 
 private:
     void setupUI();
@@ -31,11 +37,14 @@ private:
     void populateFileList(git_commit *commit);
     void showFileDiff(const QString &filePath);
     void loadSyntaxDefinitions();
+    void loadThemeDefinitions();
+    void populateThemeComboBox();
 
     // UI Components
     QSplitter *mainSplitter;
     QListWidget *fileList;
     QTextEdit *diffDisplay;
+    QComboBox *themeComboBox;
     
     // Git data
     git_repository *currentRepo;
@@ -44,6 +53,7 @@ private:
     
     // Syntax highlighting
     SyntaxManager *syntaxManager;
+    ThemeManager *themeManager;
 };
 
 #endif // BOTTOMDOCKWIDGET_H

@@ -11,22 +11,12 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QMessageBox>
-#include <QComboBox>
-#include <QLabel>
-#include <QCoreApplication>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), currentRepo(nullptr), themeManager(nullptr)
+    : QMainWindow(parent), currentRepo(nullptr)
 {
     setWindowTitle("Git Repository Manager");
     setMinimumSize(800, 600);
-
-    // Initialize theme manager
-    themeManager = new ThemeManager(this);
-    QString themesPath = QCoreApplication::applicationDirPath() + "/themes";
-    if (!themeManager->loadThemeDirectory(themesPath)) {
-        qWarning() << "Failed to load themes from:" << themesPath;
-    }
 
     setupUI();
 }
@@ -126,33 +116,6 @@ void MainWindow::createToolBar()
     
     toolBar->addSeparator();
     
-    // Add theme selector
-    QLabel *themeLabel = new QLabel("Theme:", this);
-    toolBar->addWidget(themeLabel);
-    
-    themeComboBox = new QComboBox(this);
-    themeComboBox->setMinimumWidth(150);
-    
-    // Populate theme combo box
-    QStringList themes = themeManager->getAvailableThemeNames();
-    themeComboBox->addItems(themes);
-    
-    // Set current theme
-    QString currentTheme = themeManager->getActiveThemeName();
-    if (!currentTheme.isEmpty()) {
-        int index = themeComboBox->findText(currentTheme);
-        if (index >= 0) {
-            themeComboBox->setCurrentIndex(index);
-        }
-    }
-    
-    connect(themeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MainWindow::onThemeChanged);
-    
-    toolBar->addWidget(themeComboBox);
-    
-    toolBar->addSeparator();
-    
     QPushButton *aboutButton = new QPushButton("About", this);
     connect(aboutButton, &QPushButton::clicked, this, &MainWindow::showAbout);
     toolBar->addWidget(aboutButton);
@@ -222,20 +185,4 @@ bool MainWindow::openRepositoryPath(const QString &repoPath)
     qDebug() << "Repository opened:" << repoPath;
     
     return true;
-}
-
-void MainWindow::onThemeChanged(int index)
-{
-    if (index < 0 || !themeComboBox) {
-        return;
-    }
-    
-    QString themeName = themeComboBox->currentText();
-    if (!themeName.isEmpty()) {
-        themeManager->setActiveTheme(themeName);
-        qDebug() << "Theme changed to:" << themeName;
-        
-        // TODO: Apply theme to UI components
-        // This will be implemented later when we integrate syntax highlighting
-    }
 }

@@ -1,5 +1,6 @@
 #include "BottomDockWidget.h"
 #include "SyntaxManager.h"
+#include "ThemeManager.h"
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -7,48 +8,146 @@
 #include <QListWidget>
 #include <QTextEdit>
 #include <QLabel>
+#include <QComboBox>
 #include <QDebug>
 #include <QCoreApplication>
 #include <QDir>
 
 BottomDockWidget::BottomDockWidget(QWidget *parent)
-    : QDockWidget("Commit Changes", parent), currentRepo(nullptr), syntaxManager(nullptr)
+    : QDockWidget("Commit Changes", parent), currentRepo(nullptr), syntaxManager(nullptr), themeManager(nullptr), themeComboBox(nullptr)
 {
     setupUI();
     
     // Initialize syntax manager
     syntaxManager = new SyntaxManager(this);
     loadSyntaxDefinitions();
+    
+    // Initialize theme manager
+    themeManager = new ThemeManager(this);
+    loadThemeDefinitions();
+    
+    // Populate theme combo box after theme manager is initialized
+    populateThemeComboBox();
 }
 
 BottomDockWidget::~BottomDockWidget()
 {
-    // SyntaxManager will be automatically deleted as it's a child of this widget
+    // SyntaxManager and ThemeManager will be automatically deleted as they are children of this widget
 }
 
 void BottomDockWidget::loadSyntaxDefinitions()
 {
+    // Try multiple possible paths for syntax definitions
+    QStringList possiblePaths;
+    
+    // 1. Path relative to application directory
     QString appDir = QCoreApplication::applicationDirPath();
+    possiblePaths << appDir + "/syntax-highlighting/data/syntax";
+    possiblePaths << appDir + "/../syntax-highlighting/data/syntax";
+    possiblePaths << appDir + "/../../syntax-highlighting/data/syntax";
+    
+    // 2. Path relative to source directory (for development)
+    possiblePaths << appDir + "/../../../syntax-highlighting/data/syntax";
     
     bool loaded = false;
-    QDir dir(appDir + "/syntax");
-
-    if (dir.exists())
-    {
-        qDebug() << "Attempting to load syntax definitions from:" << dir.absolutePath();
-        if (syntaxManager->loadSyntaxDirectory(dir.absolutePath()))
-        {
-            qDebug()<< "Successfully loaded" << syntaxManager->syntaxCount()
-                    << "syntax definitions from:" << dir.absolutePath();
-            loaded = true;
-
+    for (const QString &path : possiblePaths) {
+        QDir dir(path);
+        if (dir.exists()) {
+            qDebug() << "Attempting to load syntax definitions from:" << dir.absolutePath();
+            if (syntaxManager->loadSyntaxDirectory(dir.absolutePath())) {
+                qDebug() << "Successfully loaded" << syntaxManager->syntaxCount() 
+                         << "syntax definitions from:" << dir.absolutePath();
+                loaded = true;
+                break;
+            }
         }
     }
     
     if (!loaded) {
         qWarning() << "Failed to load syntax definitions from any known path";
         qDebug() << "Tried paths:";
-            qDebug() << "  -" << appDir;
+        for (const QString &path : possiblePaths) {
+            qDebug() << "  -" << path;
+        }
+    }
+}
+
+void BottomDockWidget::loadThemeDefinitions()
+{
+    // Try multiple possible paths for theme definitions
+    QStringList possiblePaths;
+    
+    // 1. Path relative to application directory
+    QString appDir = QCoreApplication::applicationDirPath();
+    possiblePaths << appDir + "/themes";
+    possiblePaths << appDir + "/../themes";
+    possiblePaths << appDir + "/../../themes";
+    
+    // 2. Path relative to source directory (for development)
+    possiblePaths << appDir + "/../../../themes";
+    
+    // 3. Also try syntax-highlighting/data/themes
+    possiblePaths << appDir + "/syntax-highlighting/data/themes";
+    possiblePaths << appDir + "/../syntax-highlighting/data/themes";
+    possiblePaths << appDir + "/../../syntax-highlighting/data/themes";
+    possiblePaths << appDir + "/../../../syntax-highlighting/data/themes";
+    
+    bool loaded = false;
+    for (const QString &path : possiblePaths) {
+        QDir dir(path);
+        if (dir.exists()) {
+            qDebug() << "Attempting to load theme definitions from:" << dir.absolutePath();
+            if (themeManager->loadThemeDirectory(dir.absolutePath())) {
+                qDebug() << "Successfully loaded" << themeManager->themeCount() 
+                         << "theme definitions from:" << dir.absolutePath();
+                loaded = true;
+                break;
+            }
+        }
+    }
+    
+    if (!loaded) {
+        qWarning() << "Failed to load theme definitions from any known path";
+        qDebug() << "Tried paths:";
+        for (const QString &path : possiblePaths) {
+            qDebug() << "  -" << path;
+        }
+    }
+}
+
+void BottomDockWidget::populateThemeComboBox()
+{
+    if (!themeComboBox || !themeManager) {
+        return;
+    }
+    
+    // Populate theme combo box
+    QStringList themes = themeManager->getAvailableThemeNames();
+    themeComboBox->addItems(themes);
+    
+    // Set current theme
+    QString currentTheme = themeManager->getActiveThemeName();
+    if (!currentTheme.isEmpty()) {
+        int index = themeComboBox->findText(currentTheme);
+        if (index >= 0) {
+            themeComboBox->setCurrentIndex(index);
+        }
+    }
+}
+
+void BottomDockWidget::onThemeChanged(int index)
+{
+    if (index < 0 || !themeComboBox || !themeManager) {
+        return;
+    }
+    
+    QString themeName = themeComboBox->currentText();
+    if (!themeName.isEmpty()) {
+        themeManager->setActiveTheme(themeName);
+        qDebug() << "Theme changed to:" << themeName;
+        
+        // TODO: Apply theme to diffDisplay
+        // This will be implemented when we integrate syntax highlighting
     }
 }
 
@@ -76,15 +175,33 @@ void BottomDockWidget::setupUI()
     
     mainSplitter->addWidget(leftPanel);
     
-    // Right panel - Diff Display
+    // Right panel - Diff Display with Theme Selector
     QWidget *rightPanel = new QWidget(this);
     QVBoxLayout *rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(0, 0, 0, 0);
     
+    // Theme selector row
+    QHBoxLayout *themeLayout = new QHBoxLayout();
+    themeLayout->setContentsMargins(4, 4, 4, 4);
+    
     QLabel *diffLabel = new QLabel("File Diff:", this);
     diffLabel->setStyleSheet("font-weight: bold; padding: 4px;");
-    rightLayout->addWidget(diffLabel);
+    themeLayout->addWidget(diffLabel);
     
+    themeLayout->addStretch();
+    
+    QLabel *themeLabel = new QLabel("Theme:", this);
+    themeLayout->addWidget(themeLabel);
+    
+    themeComboBox = new QComboBox(this);
+    themeComboBox->setMinimumWidth(150);
+    connect(themeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BottomDockWidget::onThemeChanged);
+    themeLayout->addWidget(themeComboBox);
+    
+    rightLayout->addLayout(themeLayout);
+    
+    // Diff display
     diffDisplay = new QTextEdit(this);
     diffDisplay->setReadOnly(true);
     diffDisplay->setFont(QFont("Consolas", 10)); // Use monospace font for diff
