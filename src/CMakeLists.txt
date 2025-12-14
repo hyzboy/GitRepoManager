@@ -13,6 +13,9 @@ set(SyntaxHighlighter_SOURCES
     SyntaxHighlighter.cpp
     SyntaxLoader.cpp
     ThemeLoader.cpp
+
+    SyntaxManager.cpp
+    ThemeManager.cpp
 )
 
 source_group("SyntaxHighlighter" FILES ${SyntaxHighlighter_SOURCES})
