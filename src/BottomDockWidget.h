@@ -30,6 +30,7 @@ public slots:
 private slots:
     void onFileSelected();
     void onThemeChanged(int index);
+    void onSyntaxChanged(int index);
 
 private:
     void setupUI();
@@ -39,12 +40,14 @@ private:
     void loadSyntaxDefinitions();
     void loadThemeDefinitions();
     void populateThemeComboBox();
+    void populateSyntaxComboBox();
 
     // UI Components
     QSplitter *mainSplitter;
     QListWidget *fileList;
     QTextEdit *diffDisplay;
     QComboBox *themeComboBox;
+    QComboBox *syntaxComboBox;
     
     // Git data
     git_repository *currentRepo;
