@@ -9,17 +9,26 @@ set(SOURCES
     DLG_About.cpp
 )
 
+set(SyntaxHighlighter_SOURCES
+    SyntaxHighlighter.cpp
+    SyntaxLoader.cpp
+    ThemeLoader.cpp
+)
+
+source_group("SyntaxHighlighter" FILES ${SyntaxHighlighter_SOURCES})
+
 # Find Qt
-find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Core Widgets Xml REQUIRED)
 message(STATUS "Found Qt6 components: Core, Widgets")
 
 # Create executable
-add_executable(GitRepoManager ${SOURCES})
+add_executable(GitRepoManager ${SOURCES} ${SyntaxHighlighter_SOURCES})
 
 # Link libraries
 target_link_libraries(GitRepoManager PRIVATE
     Qt6::Core
     Qt6::Widgets
+    Qt6::Xml
 )
 
 find_package(libgit2 CONFIG REQUIRED)
