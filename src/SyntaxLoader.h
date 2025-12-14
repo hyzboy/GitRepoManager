@@ -5,8 +5,9 @@
 #include <QString>
 #include <QStringList>
 #include <QMap>
+#include <QSet>
 #include <QRegularExpression>
-#include <QtXml>
+#include <QXmlStreamReader>
 
 // 关键字列表
 struct KeywordList {
@@ -17,6 +18,7 @@ struct KeywordList {
 // 上下文规则
 struct ContextRule {
     enum RuleType {
+        Unknown,
         DetectChar,
         Detect2Chars,
         AnyChar,
@@ -36,11 +38,11 @@ struct ContextRule {
         DetectIdentifier
     };
     
-    RuleType type;
+    RuleType type = Unknown;
     QString attribute;          // 应用的样式名称
-    QString context;            // 跳转到的上下文
+    QString context;            // 跳转到的上下文或包含的规则
     QString string;             // 匹配的字符串
-    QString string1;            // 第二个字符（用于Detect2Chars）
+    QString string1;            // 第二个字符串（用于某些规则）
     QChar char0;                // 字符（用于DetectChar）
     QChar char1;                // 第二个字符
     QString keywordList;        // 关键字列表名称
@@ -69,9 +71,9 @@ public:
     QString name;
     QString section;
     QString style;
-    QStringList extensions;
-    QStringList mimeTypes;
-    int priority = 0;  // 优先级，用于多个语法匹配同一文件时选择
+    QString extensions;  // 扩展名字符串
+    QString mimetypes;   // MIME类型字符串
+    int priority = 0;
     
     QMap<QString, KeywordList> keywords;
     QMap<QString, Context> contexts;
@@ -97,24 +99,23 @@ public:
     explicit SyntaxLoader(QObject *parent = nullptr);
     
     // 加载语法定义文件
-    bool loadSyntax(const QString &syntaxFilePath);
-    
-    // 获取语法定义
-    SyntaxDefinition getSyntaxDefinition() const { return m_definition; }
+    SyntaxDefinition loadSyntaxFromFile(const QString &filePath);
     
     // 根据文件扩展名判断是否匹配
-    bool matchesFile(const QString &filename) const;
+    bool matchesFile(const QString &filename, const SyntaxDefinition &def) const;
     
 private:
-    SyntaxDefinition m_definition;
-    
     // 解析XML的辅助函数
-    void parseHighlighting(const QDomElement &element);
-    void parseList(const QDomElement &element);
-    void parseContexts(const QDomElement &element);
-    void parseContext(const QDomElement &element);
-    void parseItemDatas(const QDomElement &element);
-    ContextRule parseRule(const QDomElement &element);
+    void parseContexts(QXmlStreamReader &xml, SyntaxDefinition &definition, const QString &syntaxDir);
+    void parseItemDatas(QXmlStreamReader &xml, SyntaxDefinition &definition);
+    
+    // 外部语法支持
+    QString findSyntaxFile(const QString &syntaxName, const QString &searchDir);
+    void expandExternalReferences(SyntaxDefinition &definition, 
+                                  const QMap<QString, SyntaxDefinition> &externalDefs);
+    
+    // 防止无限递归：记录正在加载的语法名称
+    QSet<QString> m_loadingStack;
 };
 
 #endif // SYNTAXLOADER_H

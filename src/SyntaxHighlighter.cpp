@@ -1,6 +1,26 @@
 #include "SyntaxHighlighter.h"
 #include <QDebug>
 
+// 调试开关：设置为 true 启用详细日志，false 禁用
+#define SYNTAX_DEBUG_ENABLED false
+#define SYNTAX_DEBUG_VERBOSE false  // 更详细的规则匹配日志
+
+#if SYNTAX_DEBUG_ENABLED
+    #define SYNTAX_DEBUG(msg) qDebug() << msg
+    #define SYNTAX_WARNING(msg) qWarning() << msg
+    #define SYNTAX_CRITICAL(msg) qCritical() << msg
+#else
+    #define SYNTAX_DEBUG(msg)
+    #define SYNTAX_WARNING(msg)
+    #define SYNTAX_CRITICAL(msg) qCritical() << msg  // 保留严重错误
+#endif
+
+#if SYNTAX_DEBUG_VERBOSE
+    #define SYNTAX_DEBUG_VERBOSE_LOG(msg) qDebug() << msg
+#else
+    #define SYNTAX_DEBUG_VERBOSE_LOG(msg)
+#endif
+
 SyntaxHighlighter::SyntaxHighlighter(QTextDocument *parent)
     : QSyntaxHighlighter(parent)
     , m_themeLoader(nullptr)
@@ -10,10 +30,10 @@ SyntaxHighlighter::SyntaxHighlighter(QTextDocument *parent)
 void SyntaxHighlighter::setSyntaxDefinition(const SyntaxDefinition &definition)
 {
     m_definition = definition;
-    qDebug() << "=== SyntaxHighlighter::setSyntaxDefinition ===" 
+    SYNTAX_DEBUG("=== SyntaxHighlighter::setSyntaxDefinition ===" 
              << "name:" << definition.name
              << "contexts:" << definition.contexts.size()
-             << "keywords:" << definition.keywords.size();
+             << "keywords:" << definition.keywords.size());
     
     initFormats();
     rehighlight();
@@ -22,8 +42,8 @@ void SyntaxHighlighter::setSyntaxDefinition(const SyntaxDefinition &definition)
 void SyntaxHighlighter::setTheme(ThemeLoader *themeLoader)
 {
     m_themeLoader = themeLoader;
-    qDebug() << "=== SyntaxHighlighter::setTheme ===" 
-             << "theme:" << (themeLoader ? themeLoader->themeName() : "null");
+    SYNTAX_DEBUG("=== SyntaxHighlighter::setTheme ===" 
+             << "theme:" << (themeLoader ? themeLoader->themeName() : "null"));
     
     initFormats();
     rehighlight();
@@ -32,14 +52,10 @@ void SyntaxHighlighter::setTheme(ThemeLoader *themeLoader)
 void SyntaxHighlighter::initFormats()
 {
     if (!m_themeLoader) {
-        qDebug() << "SyntaxHighlighter::initFormats - no theme loader";
         return;
     }
     
     m_formats.clear();
-    
-    qDebug() << "SyntaxHighlighter::initFormats - creating formats for" 
-             << m_definition.itemDatas.size() << "items";
     
     // 为每个itemData创建格式
     for (auto it = m_definition.itemDatas.constBegin(); 
@@ -57,15 +73,13 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
     static int blockCounter = 0;
     int currentBlockId = ++blockCounter;
     
-    qDebug() << ">>> [Block" << currentBlockId << "] highlightBlock START - text length:" << text.length();
+    SYNTAX_DEBUG_VERBOSE_LOG(">>> [Block" << currentBlockId << "] highlightBlock START - text length:" << text.length());
     
     if (text.isEmpty()) {
-        qDebug() << "<<< [Block" << currentBlockId << "] highlightBlock END - empty text";
         return;
     }
     
     if (m_definition.contexts.isEmpty()) {
-        qDebug() << "<<< [Block" << currentBlockId << "] highlightBlock END - no contexts";
         return;
     }
     
@@ -75,33 +89,31 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
     // 如果找不到 "Normal"，使用第一个可用的上下文
     if (!m_definition.contexts.contains(currentContext) && !m_definition.contexts.isEmpty()) {
         currentContext = m_definition.contexts.firstKey();
-        qDebug() << "[Block" << currentBlockId << "] Using fallback context:" << currentContext;
     }
     
     Context context = m_definition.getContext(currentContext);
     if (context.name.isEmpty()) {
-        qDebug() << "<<< [Block" << currentBlockId << "] highlightBlock END - no valid context";
         return;
     }
     
-    qDebug() << "[Block" << currentBlockId << "] Starting context:" << currentContext 
-             << "rules:" << context.rules.size();
-    
     int position = 0;
     int iterationCount = 0;
-    const int maxIterations = text.length() * 10;  // 增加限制以便更容易检测死循环
+    const int maxIterations = text.length() * 10;
     
-    // 跟踪上下文切换
+    // 跟踪上下文切换（仅在调试模式）
     QStringList contextHistory;
-    contextHistory << currentContext;
+    if (SYNTAX_DEBUG_ENABLED) {
+        contextHistory << currentContext;
+    }
     
     while (position < text.length() && iterationCount < maxIterations) {
         iterationCount++;
         
+        // 每 100 次迭代检查一次（即使日志关闭也检查）
         if (iterationCount % 100 == 0) {
-            qDebug() << "[Block" << currentBlockId << "] Iteration:" << iterationCount 
+            SYNTAX_WARNING("[Block" << currentBlockId << "] High iteration count:" << iterationCount 
                      << "position:" << position << "/" << text.length()
-                     << "context:" << currentContext;
+                     << "context:" << currentContext);
         }
         
         bool matched = false;
@@ -114,27 +126,30 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
             if (rule.type == ContextRule::IncludeRules) {
                 QString includeContext = rule.context;
                 
-                qDebug() << "[Block" << currentBlockId << "] IncludeRules:" << includeContext 
-                         << "at position:" << position;
+                SYNTAX_DEBUG_VERBOSE_LOG("[Block" << currentBlockId << "] IncludeRules:" << includeContext);
                 
-                // 处理 ##ISO C++ 这样的外部引用（暂时跳过）
+                // 处理外部语法引用：##ISO C++, ##GCCExtensions 等
                 if (includeContext.startsWith("##")) {
-                    qDebug() << "[Block" << currentBlockId << "] Skipping external reference:" << includeContext;
+                    // 外部语法引用，暂时跳过
+                    // TODO: 实现跨语法文件的规则包含
+                    QString externalSyntax = includeContext.mid(2); // 去掉 "##"
+                    SYNTAX_WARNING("[Block" << currentBlockId << "] External syntax reference not yet supported:" 
+                             << externalSyntax << "- skipping");
                     continue;
                 }
                 
                 // 检测循环包含
                 if (includeContext == currentContext) {
-                    qDebug() << "!!! [Block" << currentBlockId << "] WARNING: Self-referencing IncludeRules detected!"
-                             << "context:" << includeContext;
+                    SYNTAX_WARNING("[Block" << currentBlockId << "] Self-referencing IncludeRules detected!"
+                             << "context:" << includeContext);
                     continue;
                 }
                 
                 // 获取要包含的上下文
                 Context includedContext = m_definition.getContext(includeContext);
                 if (!includedContext.name.isEmpty()) {
-                    qDebug() << "[Block" << currentBlockId << "] Processing included context:" 
-                             << includeContext << "with" << includedContext.rules.size() << "rules";
+                    SYNTAX_DEBUG_VERBOSE_LOG("[Block" << currentBlockId << "] Processing included context:" 
+                             << includeContext << "with" << includedContext.rules.size() << "rules");
                     
                     // 递归尝试包含上下文的规则
                     for (const ContextRule &includedRule : includedContext.rules) {
@@ -142,28 +157,23 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
                         if (applyRule(includedRule, text, position, currentContext)) {
                             matched = true;
                             
-                            qDebug() << "[Block" << currentBlockId << "] Matched included rule at position:" 
-                                     << oldPosition << "new position:" << position;
-                            
                             // 处理上下文切换
                             if (!includedRule.context.isEmpty() && includedRule.context != "#stay") {
                                 QString newContext = resolveContext(includedRule.context, currentContext);
                                 
-                                qDebug() << "[Block" << currentBlockId << "] Context switch from:" 
-                                         << currentContext << "to:" << newContext
-                                         << "via rule context:" << includedRule.context;
-                                
                                 if (!newContext.isEmpty() && m_definition.contexts.contains(newContext)) {
                                     currentContext = newContext;
                                     context = m_definition.getContext(currentContext);
-                                    contextHistory << currentContext;
                                     
-                                    // 检测上下文循环
-                                    if (contextHistory.count(currentContext) > 3) {
-                                        qDebug() << "!!! [Block" << currentBlockId << "] WARNING: Context appears multiple times!"
-                                                 << "context:" << currentContext
-                                                 << "count:" << contextHistory.count(currentContext)
-                                                 << "history:" << contextHistory;
+                                    if (SYNTAX_DEBUG_ENABLED) {
+                                        contextHistory << currentContext;
+                                        
+                                        // 检测上下文循环
+                                        if (contextHistory.count(currentContext) > 3) {
+                                            SYNTAX_WARNING("[Block" << currentBlockId << "] Context appears multiple times!"
+                                                     << "context:" << currentContext
+                                                     << "count:" << contextHistory.count(currentContext));
+                                        }
                                     }
                                 }
                             }
@@ -185,30 +195,27 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
                 matched = true;
                 
                 if (position == oldPosition && !rule.lookAhead) {
-                    qDebug() << "!!! [Block" << currentBlockId << "] WARNING: Rule matched but position didn't advance!"
-                             << "rule type:" << rule.type
-                             << "position:" << position
-                             << "lookAhead:" << rule.lookAhead;
+                    SYNTAX_WARNING("[Block" << currentBlockId << "] Rule matched but position didn't advance!"
+                             << "position:" << position);
                 }
                 
                 // 处理上下文切换
                 if (!rule.context.isEmpty() && rule.context != "#stay") {
                     QString newContext = resolveContext(rule.context, currentContext);
                     
-                    qDebug() << "[Block" << currentBlockId << "] Context switch from:" 
-                             << currentContext << "to:" << newContext
-                             << "via rule context:" << rule.context;
-                    
                     if (!newContext.isEmpty() && m_definition.contexts.contains(newContext)) {
                         currentContext = newContext;
                         context = m_definition.getContext(currentContext);
-                        contextHistory << currentContext;
                         
-                        // 检测上下文循环
-                        if (contextHistory.count(currentContext) > 3) {
-                            qDebug() << "!!! [Block" << currentBlockId << "] WARNING: Context appears multiple times!"
-                                     << "context:" << currentContext
-                                     << "count:" << contextHistory.count(currentContext);
+                        if (SYNTAX_DEBUG_ENABLED) {
+                            contextHistory << currentContext;
+                            
+                            // 检测上下文循环
+                            if (contextHistory.count(currentContext) > 3) {
+                                SYNTAX_WARNING("[Block" << currentBlockId << "] Context appears multiple times!"
+                                         << "context:" << currentContext
+                                         << "count:" << contextHistory.count(currentContext));
+                            }
                         }
                     }
                 }
@@ -228,20 +235,17 @@ void SyntaxHighlighter::highlightBlock(const QString &text)
     }
     
     if (iterationCount >= maxIterations) {
-        qCritical() << "!!! [Block" << currentBlockId << "] INFINITE LOOP DETECTED!"
+        SYNTAX_CRITICAL("[Block" << currentBlockId << "] INFINITE LOOP DETECTED!"
                     << "iterations:" << iterationCount
                     << "position:" << position << "/" << text.length()
-                    << "current context:" << currentContext
-                    << "context history:" << contextHistory;
+                    << "current context:" << currentContext);
     }
     
-    qDebug() << "<<< [Block" << currentBlockId << "] highlightBlock END"
-             << "- iterations:" << iterationCount
-             << "final position:" << position
-             << "text length:" << text.length();
+    SYNTAX_DEBUG_VERBOSE_LOG("<<< [Block" << currentBlockId << "] highlightBlock END"
+             << "- iterations:" << iterationCount);
     
     // 保存当前状态
-    setCurrentBlockState(0); // 简化处理
+    setCurrentBlockState(0);
 }
 
 bool SyntaxHighlighter::applyRule(const ContextRule &rule, const QString &text, 
@@ -250,28 +254,6 @@ bool SyntaxHighlighter::applyRule(const ContextRule &rule, const QString &text,
     int start = position;
     int length = 0;
     bool matched = false;
-    
-    // 记录规则类型（用于调试）
-    QString ruleTypeName;
-    switch (rule.type) {
-        case ContextRule::DetectChar: ruleTypeName = "DetectChar"; break;
-        case ContextRule::Detect2Chars: ruleTypeName = "Detect2Chars"; break;
-        case ContextRule::AnyChar: ruleTypeName = "AnyChar"; break;
-        case ContextRule::StringDetect: ruleTypeName = "StringDetect"; break;
-        case ContextRule::WordDetect: ruleTypeName = "WordDetect"; break;
-        case ContextRule::RegExpr: ruleTypeName = "RegExpr"; break;
-        case ContextRule::Keyword: ruleTypeName = "Keyword"; break;
-        case ContextRule::Int: ruleTypeName = "Int"; break;
-        case ContextRule::Float: ruleTypeName = "Float"; break;
-        case ContextRule::HlCOct: ruleTypeName = "HlCOct"; break;
-        case ContextRule::HlCHex: ruleTypeName = "HlCHex"; break;
-        case ContextRule::LineContinue: ruleTypeName = "LineContinue"; break;
-        case ContextRule::RangeDetect: ruleTypeName = "RangeDetect"; break;
-        case ContextRule::IncludeRules: ruleTypeName = "IncludeRules"; break;
-        case ContextRule::DetectSpaces: ruleTypeName = "DetectSpaces"; break;
-        case ContextRule::DetectIdentifier: ruleTypeName = "DetectIdentifier"; break;
-        default: ruleTypeName = "Unknown"; break;
-    }
     
     switch (rule.type) {
         case ContextRule::DetectChar: {
@@ -440,11 +422,6 @@ bool SyntaxHighlighter::applyRule(const ContextRule &rule, const QString &text,
         if (!rule.attribute.isEmpty()) {
             applyFormat(start, length, rule.attribute);
         }
-        
-        qDebug() << "      applyRule MATCHED - type:" << ruleTypeName
-                 << "start:" << start << "length:" << length
-                 << "newPos:" << position << "attribute:" << rule.attribute
-                 << "context:" << rule.context;
     }
     
     return matched;
@@ -477,23 +454,15 @@ void SyntaxHighlighter::applyFormat(int start, int length, const QString &attrib
 QString SyntaxHighlighter::resolveContext(const QString &context, 
                                            const QString &currentContext) const
 {
-    qDebug() << "    resolveContext called - context:" << context 
-             << "currentContext:" << currentContext;
-    
     if (context == "#stay") {
-        qDebug() << "    -> returning currentContext (stay):" << currentContext;
         return currentContext;
     } else if (context == "#pop") {
         // 简化处理：返回Normal
-        qDebug() << "    -> returning Normal (pop)";
         return "Normal";
     } else if (context.startsWith("#pop!")) {
         // 弹出并切换
-        QString newContext = context.mid(5);
-        qDebug() << "    -> returning" << newContext << "(pop and switch)";
-        return newContext;
+        return context.mid(5);
     } else {
-        qDebug() << "    -> returning" << context << "(direct)";
         return context;
     }
 }
