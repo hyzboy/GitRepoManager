@@ -6,7 +6,7 @@
 #include "RepositoryTreeWidget.h"
 #include "CommitDetailWidget.h"
 #include "CommitsDockWidget.h"
-#include "BottomDockWidget.h"
+#include "CommitDiffWidget.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -16,23 +16,23 @@ public:
     ~MainWindow();
 
 private slots:
-    void showAbout();
     void onOpenRepository();
+    void showAbout();
 
 private:
     void setupUI();
     void createLeftPanels();
-    void createToolBar();
     void createRightPanels();
+    void createToolBar();
     bool openRepositoryPath(const QString &repoPath);
 
     // UI Components
     RepositoryTreeWidget *repositoryTree;
     CommitDetailWidget *commitDetailWidget;
     CommitsDockWidget *commitsDockWidget;
-    BottomDockWidget *bottomDockWidget;
+    CommitDiffWidget *bottomDockWidget;  // Keep variable name for now to minimize changes
     
-    // Repository data
+    // Git repository
     git_repository *currentRepo;
 };
 

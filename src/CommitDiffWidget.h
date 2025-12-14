@@ -1,5 +1,5 @@
-#ifndef BOTTOMDOCKWIDGET_H
-#define BOTTOMDOCKWIDGET_H
+#ifndef COMMITDIFFWIDGET_H
+#define COMMITDIFFWIDGET_H
 
 #include <QDockWidget>
 #include <QListWidget>
@@ -13,12 +13,12 @@ class SyntaxManager;
 class ThemeManager;
 class SyntaxHighlighter;
 
-class BottomDockWidget : public QDockWidget {
+class CommitDiffWidget : public QDockWidget {
     Q_OBJECT
 
 public:
-    explicit BottomDockWidget(QWidget *parent = nullptr);
-    ~BottomDockWidget();
+    explicit CommitDiffWidget(QWidget *parent = nullptr);
+    ~CommitDiffWidget();
 
     void setRepository(git_repository *repo);
     
@@ -65,4 +65,4 @@ private:
     QString currentFilePath;
 };
 
-#endif // BOTTOMDOCKWIDGET_H
+#endif // COMMITDIFFWIDGET_H

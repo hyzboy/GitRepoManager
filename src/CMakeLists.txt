@@ -3,7 +3,7 @@ set(SOURCES
     main.cpp
     MainWindow.cpp
     CommitsDockWidget.cpp
-    BottomDockWidget.cpp
+    CommitDiffWidget.cpp
     RepositoryTreeWidget.cpp
     CommitDetailWidget.cpp
     DLG_About.cpp

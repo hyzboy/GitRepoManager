@@ -80,9 +80,9 @@ void MainWindow::setupUI()
     connect(commitsDockWidget, &CommitsDockWidget::commitSelected, 
             commitDetailWidget, &CommitDetailWidget::displayCommitDetail);
     
-    // CommitDetailWidget -> BottomDockWidget
+    // CommitDetailWidget -> CommitDiffWidget
     connect(commitDetailWidget, &CommitDetailWidget::commitDetailsChanged,
-            bottomDockWidget, &BottomDockWidget::displayCommitFiles);
+            bottomDockWidget, &CommitDiffWidget::displayCommitFiles);
 
     setCentralWidget(centralWidget);
 }
@@ -102,8 +102,8 @@ void MainWindow::createRightPanels()
     // Create commits dock widget
     commitsDockWidget = new CommitsDockWidget(this);
     
-    // Create bottom dock widget
-    bottomDockWidget = new BottomDockWidget(this);
+    // Create commit diff widget
+    bottomDockWidget = new CommitDiffWidget(this);
 }
 
 void MainWindow::createToolBar()

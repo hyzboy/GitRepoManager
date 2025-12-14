@@ -1,4 +1,4 @@
-#include "BottomDockWidget.h"
+#include "CommitDiffWidget.h"
 #include "SyntaxManager.h"
 #include "ThemeManager.h"
 #include "SyntaxHighlighter.h"
@@ -14,7 +14,7 @@
 #include <QCoreApplication>
 #include <QDir>
 
-BottomDockWidget::BottomDockWidget(QWidget *parent)
+CommitDiffWidget::CommitDiffWidget(QWidget *parent)
     : QDockWidget("Commit Changes", parent), currentRepo(nullptr), syntaxManager(nullptr), themeManager(nullptr), themeComboBox(nullptr), syntaxComboBox(nullptr), syntaxHighlighter(nullptr)
 {
     setupUI();
@@ -35,12 +35,12 @@ BottomDockWidget::BottomDockWidget(QWidget *parent)
     populateSyntaxComboBox();
 }
 
-BottomDockWidget::~BottomDockWidget()
+CommitDiffWidget::~CommitDiffWidget()
 {
     // SyntaxManager, ThemeManager, and SyntaxHighlighter will be automatically deleted as they are children of this widget
 }
 
-void BottomDockWidget::loadSyntaxDefinitions()
+void CommitDiffWidget::loadSyntaxDefinitions()
 {
     // Try multiple possible paths for syntax definitions
     QStringList possiblePaths;
@@ -69,7 +69,7 @@ void BottomDockWidget::loadSyntaxDefinitions()
     }
 }
 
-void BottomDockWidget::loadThemeDefinitions()
+void CommitDiffWidget::loadThemeDefinitions()
 {
     // Try multiple possible paths for theme definitions
     QStringList possiblePaths;
@@ -97,7 +97,7 @@ void BottomDockWidget::loadThemeDefinitions()
     }
 }
 
-void BottomDockWidget::populateThemeComboBox()
+void CommitDiffWidget::populateThemeComboBox()
 {
     if (!themeComboBox || !themeManager) {
         return;
@@ -117,7 +117,7 @@ void BottomDockWidget::populateThemeComboBox()
     }
 }
 
-void BottomDockWidget::populateSyntaxComboBox()
+void CommitDiffWidget::populateSyntaxComboBox()
 {
     if (!syntaxComboBox || !syntaxManager) {
         return;
@@ -135,7 +135,7 @@ void BottomDockWidget::populateSyntaxComboBox()
     syntaxComboBox->setCurrentIndex(0);
 }
 
-void BottomDockWidget::onThemeChanged(int index)
+void CommitDiffWidget::onThemeChanged(int index)
 {
     if (index < 0 || !themeComboBox || !themeManager) {
         return;
@@ -151,7 +151,7 @@ void BottomDockWidget::onThemeChanged(int index)
     }
 }
 
-void BottomDockWidget::onSyntaxChanged(int index)
+void CommitDiffWidget::onSyntaxChanged(int index)
 {
     if (index < 0 || !syntaxComboBox) {
         return;
@@ -188,7 +188,7 @@ void BottomDockWidget::onSyntaxChanged(int index)
     }
 }
 
-void BottomDockWidget::setupUI()
+void CommitDiffWidget::setupUI()
 {
     QWidget *content = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(content);
@@ -207,7 +207,7 @@ void BottomDockWidget::setupUI()
     leftLayout->addWidget(filesLabel);
     
     fileList = new QListWidget(this);
-    connect(fileList, &QListWidget::currentRowChanged, this, &BottomDockWidget::onFileSelected);
+    connect(fileList, &QListWidget::currentRowChanged, this, &CommitDiffWidget::onFileSelected);
     
     // Set minimum and initial width for file list based on character width
     QFontMetrics fm(fileList->font());
@@ -241,7 +241,7 @@ void BottomDockWidget::setupUI()
     themeComboBox = new QComboBox(this);
     themeComboBox->setMinimumWidth(150);
     connect(themeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &BottomDockWidget::onThemeChanged);
+            this, &CommitDiffWidget::onThemeChanged);
     headerLayout->addWidget(themeComboBox);
     
     // Syntax selector
@@ -251,7 +251,7 @@ void BottomDockWidget::setupUI()
     syntaxComboBox = new QComboBox(this);
     syntaxComboBox->setMinimumWidth(150);
     connect(syntaxComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &BottomDockWidget::onSyntaxChanged);
+            this, &CommitDiffWidget::onSyntaxChanged);
     headerLayout->addWidget(syntaxComboBox);
 
     rightLayout->addLayout(headerLayout);
@@ -279,12 +279,12 @@ void BottomDockWidget::setupUI()
     setWidget(content);
 }
 
-void BottomDockWidget::setRepository(git_repository *repo)
+void CommitDiffWidget::setRepository(git_repository *repo)
 {
     currentRepo = repo;
 }
 
-void BottomDockWidget::displayCommitFiles(const git_oid &oid)
+void CommitDiffWidget::displayCommitFiles(const git_oid &oid)
 {
     clearDisplay();
     
@@ -306,7 +306,7 @@ void BottomDockWidget::displayCommitFiles(const git_oid &oid)
     git_commit_free(commit);
 }
 
-void BottomDockWidget::populateFileList(git_commit *commit)
+void CommitDiffWidget::populateFileList(git_commit *commit)
 {
     if (!commit) return;
     
@@ -374,7 +374,7 @@ void BottomDockWidget::populateFileList(git_commit *commit)
     git_tree_free(commit_tree);
 }
 
-void BottomDockWidget::onFileSelected()
+void CommitDiffWidget::onFileSelected()
 {
     QListWidgetItem *item = fileList->currentItem();
     if (!item) {
@@ -398,7 +398,7 @@ void BottomDockWidget::onFileSelected()
     showFileDiff(filePath);
 }
 
-void BottomDockWidget::applySyntaxHighlighting()
+void CommitDiffWidget::applySyntaxHighlighting()
 {
     if (!syntaxHighlighter || !syntaxManager || !themeManager) {
         return;
@@ -447,7 +447,7 @@ void BottomDockWidget::applySyntaxHighlighting()
     syntaxHighlighter->rehighlight();
 }
 
-void BottomDockWidget::showFileDiff(const QString &filePath)
+void CommitDiffWidget::showFileDiff(const QString &filePath)
 {
     if (!currentRepo || filePath.isEmpty()) {
         diffDisplay->setPlainText("No file selected or repository not available.");
@@ -577,7 +577,7 @@ void BottomDockWidget::showFileDiff(const QString &filePath)
     applySyntaxHighlighting();
 }
 
-void BottomDockWidget::clearDisplay()
+void CommitDiffWidget::clearDisplay()
 {
     fileList->clear();
     diffDisplay->clear();
