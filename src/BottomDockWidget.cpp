@@ -1,6 +1,7 @@
 #include "BottomDockWidget.h"
 #include "SyntaxManager.h"
 #include "ThemeManager.h"
+#include "SyntaxHighlighter.h"
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -14,7 +15,7 @@
 #include <QDir>
 
 BottomDockWidget::BottomDockWidget(QWidget *parent)
-    : QDockWidget("Commit Changes", parent), currentRepo(nullptr), syntaxManager(nullptr), themeManager(nullptr), themeComboBox(nullptr), syntaxComboBox(nullptr)
+    : QDockWidget("Commit Changes", parent), currentRepo(nullptr), syntaxManager(nullptr), themeManager(nullptr), themeComboBox(nullptr), syntaxComboBox(nullptr), syntaxHighlighter(nullptr)
 {
     setupUI();
     
@@ -26,6 +27,9 @@ BottomDockWidget::BottomDockWidget(QWidget *parent)
     themeManager = new ThemeManager(this);
     loadThemeDefinitions();
     
+    // Initialize syntax highlighter with the diffDisplay document
+    syntaxHighlighter = new SyntaxHighlighter(diffDisplay->document());
+    
     // Populate combo boxes after managers are initialized
     populateThemeComboBox();
     populateSyntaxComboBox();
@@ -33,7 +37,7 @@ BottomDockWidget::BottomDockWidget(QWidget *parent)
 
 BottomDockWidget::~BottomDockWidget()
 {
-    // SyntaxManager and ThemeManager will be automatically deleted as they are children of this widget
+    // SyntaxManager, ThemeManager, and SyntaxHighlighter will be automatically deleted as they are children of this widget
 }
 
 void BottomDockWidget::loadSyntaxDefinitions()
@@ -142,8 +146,8 @@ void BottomDockWidget::onThemeChanged(int index)
         themeManager->setActiveTheme(themeName);
         qDebug() << "Theme changed to:" << themeName;
         
-        // TODO: Apply theme to diffDisplay
-        // This will be implemented when we integrate syntax highlighting
+        // Apply theme to diffDisplay
+        applySyntaxHighlighting();
     }
 }
 
@@ -177,12 +181,11 @@ void BottomDockWidget::onSyntaxChanged(int index)
         if (!filePath.isEmpty() && index == 0) {
             // Re-trigger showFileDiff to auto-detect syntax
             showFileDiff(filePath);
+        } else if (!filePath.isEmpty()) {
+            // User manually selected a syntax, apply it
+            applySyntaxHighlighting();
         }
     }
-    
-    // TODO: Apply syntax highlighting to diffDisplay with selected syntax
-    // If "Auto" is selected (index == 0), syntax is auto-detected in showFileDiff
-    // Otherwise, use the manually selected syntax definition
 }
 
 void BottomDockWidget::setupUI()
@@ -395,6 +398,55 @@ void BottomDockWidget::onFileSelected()
     showFileDiff(filePath);
 }
 
+void BottomDockWidget::applySyntaxHighlighting()
+{
+    if (!syntaxHighlighter || !syntaxManager || !themeManager) {
+        return;
+    }
+    
+    // Get current syntax from combo box
+    QString syntaxName = syntaxComboBox ? syntaxComboBox->currentText() : "";
+    
+    // If "Auto" is selected or no syntax selected, try to detect from current file
+    if (syntaxName.isEmpty() || syntaxName == "Auto") {
+        if (!currentFilePath.isEmpty()) {
+            SyntaxDefinition syntaxDef = syntaxManager->getSyntaxByFilename(currentFilePath);
+            if (!syntaxDef.name.isEmpty()) {
+                syntaxHighlighter->setSyntaxDefinition(syntaxDef);
+                qDebug() << "Applied auto-detected syntax:" << syntaxDef.name;
+            }
+        }
+    } else {
+        // Use manually selected syntax
+        SyntaxDefinition syntaxDef = syntaxManager->getSyntaxByName(syntaxName);
+        if (!syntaxDef.name.isEmpty()) {
+            syntaxHighlighter->setSyntaxDefinition(syntaxDef);
+            qDebug() << "Applied selected syntax:" << syntaxDef.name;
+        }
+    }
+    
+    // Apply current theme
+    QString themeName = themeComboBox ? themeComboBox->currentText() : "";
+    if (!themeName.isEmpty()) {
+        ThemeLoader *themeLoader = themeManager->getTheme(themeName);
+        if (themeLoader) {
+            syntaxHighlighter->setTheme(themeLoader);
+            
+            // Also apply editor background color
+            EditorColors colors = themeLoader->getEditorColors();
+            QPalette palette = diffDisplay->palette();
+            palette.setColor(QPalette::Base, colors.backgroundColor);
+            palette.setColor(QPalette::Text, colors.textColor);
+            diffDisplay->setPalette(palette);
+            
+            qDebug() << "Applied theme:" << themeName;
+        }
+    }
+    
+    // Force rehighlight
+    syntaxHighlighter->rehighlight();
+}
+
 void BottomDockWidget::showFileDiff(const QString &filePath)
 {
     if (!currentRepo || filePath.isEmpty()) {
@@ -402,8 +454,11 @@ void BottomDockWidget::showFileDiff(const QString &filePath)
         return;
     }
     
+    // Store current file path
+    currentFilePath = filePath;
+    
     // Auto-select syntax based on file extension if in Auto mode
-    if (syntaxComboBox && syntaxManager) {
+    if (syntaxComboBox && syntaxManager && syntaxComboBox->currentIndex() == 0) {
         // Get syntax definition for this file
         SyntaxDefinition syntaxDef = syntaxManager->getSyntaxByFilename(filePath);
         if (!syntaxDef.name.isEmpty()) {
@@ -517,6 +572,9 @@ void BottomDockWidget::showFileDiff(const QString &filePath)
     }
     
     git_commit_free(commit);
+    
+    // Apply syntax highlighting after text is set
+    applySyntaxHighlighting();
 }
 
 void BottomDockWidget::clearDisplay()

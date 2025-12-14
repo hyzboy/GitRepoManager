@@ -11,6 +11,7 @@ class QSplitter;
 class QComboBox;
 class SyntaxManager;
 class ThemeManager;
+class SyntaxHighlighter;
 
 class BottomDockWidget : public QDockWidget {
     Q_OBJECT
@@ -41,6 +42,7 @@ private:
     void loadThemeDefinitions();
     void populateThemeComboBox();
     void populateSyntaxComboBox();
+    void applySyntaxHighlighting();
 
     // UI Components
     QSplitter *mainSplitter;
@@ -57,6 +59,10 @@ private:
     // Syntax highlighting
     SyntaxManager *syntaxManager;
     ThemeManager *themeManager;
+    SyntaxHighlighter *syntaxHighlighter;
+    
+    // Current file path for re-applying highlighting
+    QString currentFilePath;
 };
 
 #endif // BOTTOMDOCKWIDGET_H
