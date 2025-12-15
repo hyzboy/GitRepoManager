@@ -73,6 +73,7 @@ public:
     QString style;
     QString extensions;  // 扩展名字符串
     QString mimetypes;   // MIME类型字符串
+    QString fileName;    // 原始文件名（用于调试）
     int priority = 0;
     
     QMap<QString, KeywordList> keywords;
@@ -98,24 +99,38 @@ class SyntaxLoader : public QObject
 public:
     explicit SyntaxLoader(QObject *parent = nullptr);
     
-    // 加载语法定义文件
+    // 设置语法文件目录并建立名称映射
+    void setSyntaxDirectory(const QString &syntaxDir);
+    
+    // 从文件加载语法定义
     SyntaxDefinition loadSyntaxFromFile(const QString &filePath);
     
-    // 根据文件扩展名判断是否匹配
+    // 根据语法名称查找文件路径
+    QString findSyntaxFileByName(const QString &syntaxName);
+    
+    // 检查语法是否匹配指定文件
     bool matchesFile(const QString &filename, const SyntaxDefinition &def) const;
     
 private:
-    // 解析XML的辅助函数
-    void parseContexts(QXmlStreamReader &xml, SyntaxDefinition &definition, const QString &syntaxDir);
-    void parseItemDatas(QXmlStreamReader &xml, SyntaxDefinition &definition);
+    QString m_syntaxDirectory;
+    QMap<QString, QString> m_syntaxNameToFileMap;  // 语法名称 -> 文件路径映射
+    QSet<QString> m_loadingStack;  // 防止循环引用
     
-    // 外部语法支持
-    QString findSyntaxFile(const QString &syntaxName, const QString &searchDir);
+    // 建立语法名称到文件的映射表
+    void buildSyntaxNameMap();
+    
+    // 从 XML 文件中提取语法名称
+    QString extractSyntaxName(const QString &filePath);
+    
+    // 解析 contexts 节点
+    void parseContexts(QXmlStreamReader &xml, SyntaxDefinition &definition);
+    
+    // 展开外部语法引用
     void expandExternalReferences(SyntaxDefinition &definition, 
                                   const QMap<QString, SyntaxDefinition> &externalDefs);
     
-    // 防止无限递归：记录正在加载的语法名称
-    QSet<QString> m_loadingStack;
+    // 解析 itemDatas 节点
+    void parseItemDatas(QXmlStreamReader &xml, SyntaxDefinition &definition);
 };
 
 #endif // SYNTAXLOADER_H

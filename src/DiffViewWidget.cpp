@@ -1,7 +1,7 @@
 #include "DiffViewWidget.h"
 #include "SyntaxManager.h"
 #include "ThemeManager.h"
-#include "SyntaxHighlighter.h"
+#include "DiffSyntaxHighlighter.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -14,7 +14,7 @@ DiffViewWidget::DiffViewWidget(QWidget *parent)
     , m_syntaxComboBox(nullptr)
     , m_syntaxManager(nullptr)
     , m_themeManager(nullptr)
-    , m_highlighter(nullptr)
+    , m_diffHighlighter(nullptr)
 {
     setupUI();
 }
@@ -73,9 +73,10 @@ void DiffViewWidget::setSyntaxManager(SyntaxManager *manager)
 {
     m_syntaxManager = manager;
     
-    // Initialize syntax highlighter
-    if (m_syntaxManager && !m_highlighter) {
-        m_highlighter = new SyntaxHighlighter(m_diffDisplay->document());
+    // Initialize diff highlighter
+    if (m_syntaxManager && !m_diffHighlighter) {
+        m_diffHighlighter = new DiffSyntaxHighlighter(m_diffDisplay->document());
+        qDebug() << "Created DiffSyntaxHighlighter";
     }
     
     populateSyntaxComboBox();
@@ -92,6 +93,10 @@ void DiffViewWidget::setContent(const QString &content, const QString &filePath)
     m_currentFilePath = filePath;
     m_diffDisplay->setPlainText(content);
     
+    qDebug() << "=== DiffViewWidget::setContent ===" 
+             << "file:" << filePath 
+             << "content length:" << content.length();
+    
     // Auto-select syntax based on file extension if in Auto mode
     if (m_syntaxComboBox && m_syntaxManager && m_syntaxComboBox->currentIndex() == 0) {
         if (!filePath.isEmpty()) {
@@ -105,7 +110,7 @@ void DiffViewWidget::setContent(const QString &content, const QString &filePath)
                     m_syntaxComboBox->setCurrentIndex(syntaxIndex);
                     m_syntaxComboBox->blockSignals(false);
                     
-                    qDebug() << "Auto-selected syntax:" << syntaxDef.name << "for file:" << filePath;
+                    qDebug() << "Auto-selected syntax:" << syntaxDef.name;
                 }
             }
         }
@@ -204,7 +209,13 @@ void DiffViewWidget::onSyntaxComboChanged(int index)
 
 void DiffViewWidget::applySyntaxHighlighting()
 {
-    if (!m_highlighter || !m_syntaxManager || !m_themeManager) {
+    qDebug() << "=== applySyntaxHighlighting ===";
+    
+    if (!m_diffHighlighter || !m_syntaxManager || !m_themeManager) {
+        qWarning() << "Missing components:"
+                   << "highlighter:" << (m_diffHighlighter != nullptr)
+                   << "syntaxMgr:" << (m_syntaxManager != nullptr)
+                   << "themeMgr:" << (m_themeManager != nullptr);
         return;
     }
     
@@ -216,16 +227,20 @@ void DiffViewWidget::applySyntaxHighlighting()
         if (!m_currentFilePath.isEmpty()) {
             SyntaxDefinition syntaxDef = m_syntaxManager->getSyntaxByFilename(m_currentFilePath);
             if (!syntaxDef.name.isEmpty()) {
-                m_highlighter->setSyntaxDefinition(syntaxDef);
+                m_diffHighlighter->setCodeSyntaxDefinition(syntaxDef);
                 qDebug() << "Applied auto-detected syntax:" << syntaxDef.name;
+            } else {
+                qWarning() << "No syntax found for file:" << m_currentFilePath;
             }
         }
     } else {
         // Use manually selected syntax
         SyntaxDefinition syntaxDef = m_syntaxManager->getSyntaxByName(syntaxName);
         if (!syntaxDef.name.isEmpty()) {
-            m_highlighter->setSyntaxDefinition(syntaxDef);
+            m_diffHighlighter->setCodeSyntaxDefinition(syntaxDef);
             qDebug() << "Applied selected syntax:" << syntaxDef.name;
+        } else {
+            qWarning() << "Syntax not found:" << syntaxName;
         }
     }
     
@@ -234,7 +249,7 @@ void DiffViewWidget::applySyntaxHighlighting()
     if (!themeName.isEmpty()) {
         ThemeLoader *themeLoader = m_themeManager->getTheme(themeName);
         if (themeLoader) {
-            m_highlighter->setTheme(themeLoader);
+            m_diffHighlighter->setTheme(themeLoader);
             
             // Also apply editor background color
             EditorColors colors = themeLoader->getEditorColors();
@@ -244,9 +259,12 @@ void DiffViewWidget::applySyntaxHighlighting()
             m_diffDisplay->setPalette(palette);
             
             qDebug() << "Applied theme:" << themeName;
+        } else {
+            qWarning() << "Theme loader not found:" << themeName;
         }
     }
     
     // Force rehighlight
-    m_highlighter->rehighlight();
+    qDebug() << "Forcing rehighlight...";
+    m_diffHighlighter->rehighlight();
 }

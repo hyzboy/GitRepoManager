@@ -13,6 +13,7 @@ set(SOURCES
 )
 
 set(SyntaxHighlighter_SOURCES
+    DiffSyntaxHighlighter.cpp
     SyntaxHighlighter.cpp
     SyntaxLoader.cpp
     ThemeLoader.cpp

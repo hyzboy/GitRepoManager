@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QXmlStreamReader>
 #include <QFileInfo>
+#include <QDir>
 
 // SyntaxDefinition methods
 KeywordList SyntaxDefinition::getKeywordList(const QString &name) const
@@ -26,6 +27,85 @@ SyntaxLoader::SyntaxLoader(QObject *parent)
 {
 }
 
+void SyntaxLoader::setSyntaxDirectory(const QString &syntaxDir)
+{
+    m_syntaxDirectory = syntaxDir;
+    buildSyntaxNameMap();
+}
+
+void SyntaxLoader::buildSyntaxNameMap()
+{
+    m_syntaxNameToFileMap.clear();
+    
+    if (m_syntaxDirectory.isEmpty()) {
+        qWarning() << "Syntax directory not set!";
+        return;
+    }
+    
+    QDir dir(m_syntaxDirectory);
+    if (!dir.exists()) {
+        qWarning() << "Syntax directory does not exist:" << m_syntaxDirectory;
+        return;
+    }
+    
+    QStringList xmlFiles = dir.entryList(QStringList() << "*.xml", QDir::Files);
+    
+    qDebug() << "=== Building syntax name map from" << xmlFiles.size() << "files ===";
+    
+    for (const QString &filename : xmlFiles) {
+        QString filePath = dir.filePath(filename);
+        QString syntaxName = extractSyntaxName(filePath);
+        
+        if (!syntaxName.isEmpty()) {
+            m_syntaxNameToFileMap[syntaxName] = filePath;
+//            qDebug() << "  Mapped: '" << syntaxName << "' => " << filename;
+        }
+    }
+    
+    qDebug() << "=== Built" << m_syntaxNameToFileMap.size() << "syntax mappings ===";
+}
+
+QString SyntaxLoader::extractSyntaxName(const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return QString();
+    }
+    
+    QXmlStreamReader xml(&file);
+    
+    // 只读取到 <language> 标签
+    while (!xml.atEnd()) {
+        xml.readNext();
+        
+        if (xml.isStartElement() && xml.name() == QString("language")) {
+            QString name = xml.attributes().value("name").toString();
+            file.close();
+            return name;
+        }
+        
+        // 如果已经过了 <language> 标签，就不需要继续读了
+        if (xml.tokenType() == QXmlStreamReader::StartElement && 
+            xml.name() != QString("language")) {
+            break;
+        }
+    }
+    
+    file.close();
+    return QString();
+}
+
+QString SyntaxLoader::findSyntaxFileByName(const QString &syntaxName)
+{
+    // 首先在映射表中查找
+    if (m_syntaxNameToFileMap.contains(syntaxName)) {
+        return m_syntaxNameToFileMap[syntaxName];
+    }
+    
+    qWarning() << "Syntax not found in map:" << syntaxName;
+    return QString();
+}
+
 SyntaxDefinition SyntaxLoader::loadSyntaxFromFile(const QString &filePath)
 {
     QFile file(filePath);
@@ -40,17 +120,19 @@ SyntaxDefinition SyntaxLoader::loadSyntaxFromFile(const QString &filePath)
     // 记录当前文件的目录，用于解析相对路径的外部引用
     QFileInfo fileInfo(filePath);
     QString syntaxDir = fileInfo.absolutePath();
-    QString syntaxBaseName = fileInfo.completeBaseName(); // 不含扩展名的文件名
+    
+    // 记录原始文件名
+    definition.fileName = fileInfo.fileName();
 
     // 防止无限递归：检查是否正在加载中
-    if (m_loadingStack.contains(syntaxBaseName)) {
-        qWarning() << "Circular reference detected! Already loading:" << syntaxBaseName;
+    if (m_loadingStack.contains(filePath)) {
+        qWarning() << "Circular reference detected! Already loading:" << filePath;
         qWarning() << "Loading stack:" << m_loadingStack;
         return SyntaxDefinition(); // 返回空定义，避免无限递归
     }
     
     // 添加到加载栈
-    m_loadingStack.insert(syntaxBaseName);
+    m_loadingStack.insert(filePath);
 
     while (!xml.atEnd()) {
         xml.readNext();
@@ -73,6 +155,7 @@ SyntaxDefinition SyntaxLoader::loadSyntaxFromFile(const QString &filePath)
                 }
                 
                 qDebug() << "Loading syntax:" << definition.name 
+                         << "from file:" << definition.fileName
                          << "case sensitive:" << definition.caseSensitive;
             }
             else if (xml.name() == QString("list")) {
@@ -91,7 +174,7 @@ SyntaxDefinition SyntaxLoader::loadSyntaxFromFile(const QString &filePath)
                 definition.keywords[listName] = list;
             }
             else if (xml.name() == QString("contexts")) {
-                parseContexts(xml, definition, syntaxDir);
+                parseContexts(xml, definition);
             }
             else if (xml.name() == QString("itemDatas")) {
                 parseItemDatas(xml, definition);
@@ -104,14 +187,16 @@ SyntaxDefinition SyntaxLoader::loadSyntaxFromFile(const QString &filePath)
     }
 
     // 从加载栈中移除
-    m_loadingStack.remove(syntaxBaseName);
+    m_loadingStack.remove(filePath);
 
-    qDebug() << "Loaded syntax:" << definition.name << "with priority:" << definition.priority;
+    qDebug() << "Loaded syntax:" << definition.name 
+             << "from file:" << definition.fileName
+             << "with priority:" << definition.priority;
     
     return definition;
 }
 
-void SyntaxLoader::parseContexts(QXmlStreamReader &xml, SyntaxDefinition &definition, const QString &syntaxDir)
+void SyntaxLoader::parseContexts(QXmlStreamReader &xml, SyntaxDefinition &definition)
 {
     // 用于跟踪需要加载的外部语法
     QSet<QString> externalSyntaxNames;
@@ -244,7 +329,7 @@ void SyntaxLoader::parseContexts(QXmlStreamReader &xml, SyntaxDefinition &defini
     
     // 加载所有外部语法定义
     for (const QString &externalName : externalSyntaxNames) {
-        QString externalFilePath = findSyntaxFile(externalName, syntaxDir);
+        QString externalFilePath = findSyntaxFileByName(externalName);
         
         if (!externalFilePath.isEmpty()) {
             qDebug() << "Loading external syntax:" << externalName << "from:" << externalFilePath;
@@ -266,28 +351,6 @@ void SyntaxLoader::parseContexts(QXmlStreamReader &xml, SyntaxDefinition &defini
     }
 }
 
-QString SyntaxLoader::findSyntaxFile(const QString &syntaxName, const QString &searchDir)
-{
-    // 可能的文件名格式
-    QStringList possibleNames;
-    possibleNames << syntaxName.toLower() + ".xml";
-    possibleNames << syntaxName + ".xml";
-    
-    QString cleaned = syntaxName;
-    cleaned.replace(" ", "");
-    possibleNames << cleaned.toLower() + ".xml";
-    
-    // 首先在当前目录搜索
-    for (const QString &fileName : possibleNames) {
-        QString filePath = searchDir + "/" + fileName;
-        if (QFile::exists(filePath)) {
-            return filePath;
-        }
-    }
-    
-    return QString(); // 未找到
-}
-
 void SyntaxLoader::expandExternalReferences(SyntaxDefinition &definition, 
                                             const QMap<QString, SyntaxDefinition> &externalDefs)
 {
@@ -297,7 +360,7 @@ void SyntaxLoader::expandExternalReferences(SyntaxDefinition &definition,
     for (QMap<QString, Context>::iterator contextIt = definition.contexts.begin(); 
          contextIt != definition.contexts.end(); ++contextIt) {
         
-        Context &context = contextIt.value();
+        Context &context = contextIt.value();  // 修复：使用 .value() 而不是 ->value()
         QList<ContextRule> expandedRules;
         
         for (const ContextRule &rule : context.rules) {

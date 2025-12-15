@@ -58,6 +58,9 @@ private:
     
     // 根据优先级选择最佳语法定义
     SyntaxDefinition selectByPriority(const QStringList &syntaxNames) const;
+    
+    // 语法加载器（成员变量，避免重复初始化）
+    SyntaxLoader m_syntaxLoader;
 };
 
 #endif // SYNTAXMANAGER_H

@@ -7,7 +7,7 @@
 
 class SyntaxManager;
 class ThemeManager;
-class SyntaxHighlighter;
+class DiffSyntaxHighlighter;
 class QVBoxLayout;
 class QHBoxLayout;
 class QLabel;
@@ -54,7 +54,7 @@ private:
     // Managers
     SyntaxManager *m_syntaxManager;
     ThemeManager *m_themeManager;
-    SyntaxHighlighter *m_highlighter;
+    DiffSyntaxHighlighter *m_diffHighlighter;  // 改用 DiffSyntaxHighlighter
     
     // Current state
     QString m_currentFilePath;

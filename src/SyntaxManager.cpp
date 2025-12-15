@@ -11,35 +11,70 @@ SyntaxManager::SyntaxManager(QObject *parent)
 
 bool SyntaxManager::loadSyntaxDirectory(const QString &directoryPath)
 {
+    qDebug() << "=== SyntaxManager::loadSyntaxDirectory ===" << directoryPath;
+    
     QDir syntaxDir(directoryPath);
     if (!syntaxDir.exists()) {
         qWarning() << "Syntax directory does not exist:" << directoryPath;
         return false;
     }
 
+    // ✅ 关键修复：只初始化一次语法加载器
+    qDebug() << "Initializing SyntaxLoader with directory:" << directoryPath;
+    m_syntaxLoader.setSyntaxDirectory(directoryPath);
+
     QStringList xmlFiles = syntaxDir.entryList(QStringList() << "*.xml", QDir::Files);
     
+    qDebug() << "Found" << xmlFiles.size() << "XML files in syntax directory";
+    
     int successCount = 0;
+    int fileIndex = 0;
     for (const QString &filename : xmlFiles) {
+        fileIndex++;
         QString filePath = syntaxDir.filePath(filename);
+        
+        qDebug() << "Loading syntax file [" << fileIndex << "/" << xmlFiles.size() << "]:" << filename;
+        
         if (loadSyntaxFile(filePath)) {
             successCount++;
         }
     }
     
-    qDebug() << "Loaded" << successCount << "out of" << xmlFiles.size() << "syntax definitions";
+    qDebug() << "=== Load Summary ===" 
+             << "Loaded" << successCount << "out of" << xmlFiles.size() << "syntax definitions";
+    qDebug() << "Total syntaxes in map:" << m_syntaxMap.size();
+    qDebug() << "Extension mappings:" << m_extensionMap.size();
+    
+    // 打印扩展名映射详情（只打印部分）
+    qDebug() << "=== Extension Mappings (first 20) ===";
+    int mapCount = 0;
+    for (auto it = m_extensionMap.constBegin(); it != m_extensionMap.constEnd() && mapCount < 20; ++it, ++mapCount) {
+        qDebug() << "  ." + it.key() << "=>" << it.value();
+    }
+    if (m_extensionMap.size() > 20) {
+        qDebug() << "  ... and" << (m_extensionMap.size() - 20) << "more extensions";
+    }
+    
     return successCount > 0;
 }
 
 bool SyntaxManager::loadSyntaxFile(const QString &filePath)
 {
-    SyntaxLoader loader;
-    SyntaxDefinition definition = loader.loadSyntaxFromFile(filePath);
+    qDebug() << "  Loading syntax from:" << filePath;
+    
+    // ✅ 使用成员变量，不再重新创建 SyntaxLoader
+    SyntaxDefinition definition = m_syntaxLoader.loadSyntaxFromFile(filePath);
     
     if (definition.name.isEmpty()) {
-        qWarning() << "Failed to load syntax from:" << filePath;
+        qWarning() << "  Failed to load syntax from:" << filePath;
         return false;
     }
+    
+    qDebug() << "  Loaded syntax:" << definition.name 
+             << "priority:" << definition.priority
+             << "extensions:" << definition.extensions
+             << "contexts:" << definition.contexts.size()
+             << "keywords:" << definition.keywords.size();
     
     // 存储语法定义
     m_syntaxMap[definition.name] = definition;
@@ -47,7 +82,6 @@ bool SyntaxManager::loadSyntaxFile(const QString &filePath)
     // 注册扩展名映射
     registerExtensions(definition);
     
-    qDebug() << "Loaded syntax:" << definition.name << "with priority:" << definition.priority;
     return true;
 }
 
@@ -121,7 +155,19 @@ SyntaxDefinition SyntaxManager::getSyntaxByFilename(const QString &filename) con
     QFileInfo fileInfo(filename);
     QString extension = fileInfo.suffix();
     
-    return getSyntaxByExtension(extension);
+    qDebug() << "=== SyntaxManager::getSyntaxByFilename ===" 
+             << "filename:" << filename
+             << "extension:" << extension;
+    
+    SyntaxDefinition def = getSyntaxByExtension(extension);
+    
+    if (!def.name.isEmpty()) {
+        qDebug() << "  Found syntax:" << def.name;
+    } else {
+        qWarning() << "  No syntax found for extension:" << extension;
+    }
+    
+    return def;
 }
 
 SyntaxDefinition SyntaxManager::getSyntaxByName(const QString &name) const
